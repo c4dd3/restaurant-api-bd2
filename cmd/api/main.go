@@ -4,10 +4,11 @@ import (
 	"log"
 	"os"
 
-	"github.com/joho/godotenv"
 	"restaurant-api/internal/auth"
 	"restaurant-api/internal/repository"
 	"restaurant-api/internal/router"
+
+	"github.com/joho/godotenv"
 )
 
 func main() {
@@ -45,7 +46,6 @@ func main() {
 		port = "8080"
 	}
 
-	
 	log.Printf("🚀 Server running on port %s", port)
 	if err := r.Run(":" + port); err != nil {
 		log.Fatalf("server error: %v", err)

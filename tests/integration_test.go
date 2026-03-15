@@ -1,3 +1,6 @@
+//go:build integration
+// +build integration
+
 package tests
 
 import (
@@ -11,12 +14,13 @@ import (
 	"testing"
 	"time"
 
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
-	_ "github.com/lib/pq"
 	"restaurant-api/internal/auth"
 	"restaurant-api/internal/repository"
 	"restaurant-api/internal/router"
+
+	_ "github.com/lib/pq"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 var (

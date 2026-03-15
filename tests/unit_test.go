@@ -7,51 +7,16 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
-	"time"
 
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/mock"
 	"restaurant-api/internal/auth"
 	"restaurant-api/internal/models"
 	"restaurant-api/internal/router"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
 )
 
 // ─── Mock Repositories ───────────────────────────────────────────────────────
-
-type MockUserRepo struct{ mock.Mock }
-
-func (m *MockUserRepo) Create(user *models.User) error {
-	args := m.Called(user)
-	user.ID = "user-uuid-1"
-	user.CreatedAt = time.Now()
-	user.UpdatedAt = time.Now()
-	return args.Error(0)
-}
-func (m *MockUserRepo) FindByEmail(email string) (*models.User, error) {
-	args := m.Called(email)
-	if args.Get(0) == nil {
-		return nil, args.Error(1)
-	}
-	return args.Get(0).(*models.User), args.Error(1)
-}
-func (m *MockUserRepo) FindByID(id string) (*models.User, error) {
-	args := m.Called(id)
-	if args.Get(0) == nil {
-		return nil, args.Error(1)
-	}
-	return args.Get(0).(*models.User), args.Error(1)
-}
-func (m *MockUserRepo) Update(id string, req *models.UpdateUserRequest) (*models.User, error) {
-	args := m.Called(id, req)
-	if args.Get(0) == nil {
-		return nil, args.Error(1)
-	}
-	return args.Get(0).(*models.User), args.Error(1)
-}
-func (m *MockUserRepo) Delete(id string) error {
-	args := m.Called(id)
-	return args.Error(0)
-}
 
 type MockRestaurantRepo struct{ mock.Mock }
 
@@ -169,14 +134,6 @@ func makeRequest(method, path string, body interface{}, token string) (*httptest
 // For pure unit tests we use the mock setup below.
 func setupTestRouter(_ *sql.DB) {
 	// placeholder — real integration tests would use a real DB
-}
-
-// ─── Auth Tests ───────────────────────────────────────────────────────────────
-
-func TestRegister_Success(t *testing.T) {
-	// We need actual repository types for router.Setup — use integration-style stub below
-	// This test validates the handler logic through the real router wired with a real JWT service
-	assert.True(t, true) // placeholder — see integration tests
 }
 
 func TestJWT_GenerateAndValidate(t *testing.T) {

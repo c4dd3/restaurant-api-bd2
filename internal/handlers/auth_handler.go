@@ -5,29 +5,32 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"golang.org/x/crypto/bcrypt"
+
 	"restaurant-api/internal/auth"
 	"restaurant-api/internal/middleware"
 	"restaurant-api/internal/models"
-	"restaurant-api/internal/repository"
 )
 
 type AuthHandler struct {
-	userRepo *repository.UserRepository
+	userRepo UserRepository
 	jwtSvc   *auth.JWTService
 }
 
-func NewAuthHandler(userRepo *repository.UserRepository, jwtSvc *auth.JWTService) *AuthHandler {
-	return &AuthHandler{userRepo: userRepo, jwtSvc: jwtSvc}
+func NewAuthHandler(userRepo UserRepository, jwtSvc *auth.JWTService) *AuthHandler {
+	return &AuthHandler{
+		userRepo: userRepo,
+		jwtSvc:   jwtSvc,
+	}
 }
 
 // Register godoc
-// @Summary      Register a new user
-// @Tags         auth
-// @Accept       json
-// @Produce      json
-// @Param        body body models.RegisterRequest true "User registration data"
-// @Success      201  {object}  models.LoginResponse
-// @Router       /auth/register [post]
+// @Summary Register a new user
+// @Tags auth
+// @Accept json
+// @Produce json
+// @Param body body models.RegisterRequest true "User registration data"
+// @Success 201 {object} models.LoginResponse
+// @Router /auth/register [post]
 func (h *AuthHandler) Register(c *gin.Context) {
 	var req models.RegisterRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -35,14 +38,11 @@ func (h *AuthHandler) Register(c *gin.Context) {
 		return
 	}
 
-	// Check if email already exists in the database
 	existing, err := h.userRepo.FindByEmail(req.Email)
-	// Handle any database errors that occur during the lookup
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "database error"})
 		return
 	}
-	// If a user with this email already exists, reject the registration
 	if existing != nil {
 		c.JSON(http.StatusConflict, gin.H{"error": "email already in use"})
 		return
@@ -72,17 +72,20 @@ func (h *AuthHandler) Register(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusCreated, models.LoginResponse{Token: token, User: *user})
+	c.JSON(http.StatusCreated, models.LoginResponse{
+		Token: token,
+		User:  *user,
+	})
 }
 
 // Login godoc
-// @Summary      Login user
-// @Tags         auth
-// @Accept       json
-// @Produce      json
-// @Param        body body models.LoginRequest true "Login credentials"
-// @Success      200  {object}  models.LoginResponse
-// @Router       /auth/login [post]
+// @Summary Login user
+// @Tags auth
+// @Accept json
+// @Produce json
+// @Param body body models.LoginRequest true "Login credentials"
+// @Success 200 {object} models.LoginResponse
+// @Router /auth/login [post]
 func (h *AuthHandler) Login(c *gin.Context) {
 	var req models.LoginRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -111,26 +114,31 @@ func (h *AuthHandler) Login(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, models.LoginResponse{Token: token, User: *user})
+	c.JSON(http.StatusOK, models.LoginResponse{
+		Token: token,
+		User:  *user,
+	})
 }
 
 // Me godoc
-// @Summary      Get current user
-// @Tags         users
-// @Security     BearerAuth
-// @Produce      json
-// @Success      200  {object}  models.User
-// @Router       /users/me [get]
+// @Summary Get current user
+// @Tags users
+// @Security BearerAuth
+// @Produce json
+// @Success 200 {object} models.User
+// @Router /users/me [get]
 func (h *AuthHandler) Me(c *gin.Context) {
 	claims := middleware.ExtractClaims(c)
 	if claims == nil {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
 		return
 	}
+
 	user, err := h.userRepo.FindByID(claims.UserID)
 	if err != nil || user == nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "user not found"})
 		return
 	}
+
 	c.JSON(http.StatusOK, user)
 }

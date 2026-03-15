@@ -4,28 +4,31 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
+
 	"restaurant-api/internal/models"
-	"restaurant-api/internal/repository"
 )
 
 type MenuHandler struct {
-	menuRepo       *repository.MenuRepository
-	restaurantRepo *repository.RestaurantRepository
+	menuRepo       MenuRepository
+	restaurantRepo RestaurantRepository
 }
 
-func NewMenuHandler(menuRepo *repository.MenuRepository, restaurantRepo *repository.RestaurantRepository) *MenuHandler {
-	return &MenuHandler{menuRepo: menuRepo, restaurantRepo: restaurantRepo}
+func NewMenuHandler(menuRepo MenuRepository, restaurantRepo RestaurantRepository) *MenuHandler {
+	return &MenuHandler{
+		menuRepo:       menuRepo,
+		restaurantRepo: restaurantRepo,
+	}
 }
 
 // CreateMenu godoc
-// @Summary      Create a new menu
-// @Tags         menus
-// @Security     BearerAuth
-// @Accept       json
-// @Produce      json
-// @Param        body body models.CreateMenuRequest true "Menu data"
-// @Success      201  {object}  models.Menu
-// @Router       /menus [post]
+// @Summary Create a new menu
+// @Tags menus
+// @Security BearerAuth
+// @Accept json
+// @Produce json
+// @Param body body models.CreateMenuRequest true "Menu data"
+// @Success 201 {object} models.Menu
+// @Router /menus [post]
 func (h *MenuHandler) Create(c *gin.Context) {
 	var req models.CreateMenuRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -33,7 +36,6 @@ func (h *MenuHandler) Create(c *gin.Context) {
 		return
 	}
 
-	// Verify restaurant exists
 	rest, err := h.restaurantRepo.FindByID(req.RestaurantID)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "database error"})
@@ -49,6 +51,7 @@ func (h *MenuHandler) Create(c *gin.Context) {
 		Name:         req.Name,
 		Description:  req.Description,
 	}
+
 	for _, item := range req.Items {
 		menu.Items = append(menu.Items, models.MenuItem{
 			Name:        item.Name,
@@ -67,13 +70,13 @@ func (h *MenuHandler) Create(c *gin.Context) {
 }
 
 // GetMenu godoc
-// @Summary      Get menu by ID
-// @Tags         menus
-// @Security     BearerAuth
-// @Produce      json
-// @Param        id   path  string  true  "Menu ID"
-// @Success      200  {object}  models.Menu
-// @Router       /menus/{id} [get]
+// @Summary Get menu by ID
+// @Tags menus
+// @Security BearerAuth
+// @Produce json
+// @Param id path string true "Menu ID"
+// @Success 200 {object} models.Menu
+// @Router /menus/{id} [get]
 func (h *MenuHandler) Get(c *gin.Context) {
 	menu, err := h.menuRepo.FindByID(c.Param("id"))
 	if err != nil {
@@ -84,19 +87,20 @@ func (h *MenuHandler) Get(c *gin.Context) {
 		c.JSON(http.StatusNotFound, gin.H{"error": "menu not found"})
 		return
 	}
+
 	c.JSON(http.StatusOK, menu)
 }
 
 // UpdateMenu godoc
-// @Summary      Update a menu
-// @Tags         menus
-// @Security     BearerAuth
-// @Accept       json
-// @Produce      json
-// @Param        id   path  string  true  "Menu ID"
-// @Param        body body  models.UpdateMenuRequest true "Update data"
-// @Success      200  {object}  models.Menu
-// @Router       /menus/{id} [put]
+// @Summary Update a menu
+// @Tags menus
+// @Security BearerAuth
+// @Accept json
+// @Produce json
+// @Param id path string true "Menu ID"
+// @Param body body models.UpdateMenuRequest true "Update data"
+// @Success 200 {object} models.Menu
+// @Router /menus/{id} [put]
 func (h *MenuHandler) Update(c *gin.Context) {
 	var req models.UpdateMenuRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -113,20 +117,22 @@ func (h *MenuHandler) Update(c *gin.Context) {
 		c.JSON(http.StatusNotFound, gin.H{"error": "menu not found"})
 		return
 	}
+
 	c.JSON(http.StatusOK, menu)
 }
 
 // DeleteMenu godoc
-// @Summary      Delete a menu
-// @Tags         menus
-// @Security     BearerAuth
-// @Param        id   path  string  true  "Menu ID"
-// @Success      204
-// @Router       /menus/{id} [delete]
+// @Summary Delete a menu
+// @Tags menus
+// @Security BearerAuth
+// @Param id path string true "Menu ID"
+// @Success 204
+// @Router /menus/{id} [delete]
 func (h *MenuHandler) Delete(c *gin.Context) {
 	if err := h.menuRepo.Delete(c.Param("id")); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "error deleting menu"})
 		return
 	}
+
 	c.Status(http.StatusNoContent)
 }
