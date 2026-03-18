@@ -6,15 +6,14 @@ import (
 	"restaurant-api/internal/auth"
 	"restaurant-api/internal/handlers"
 	"restaurant-api/internal/middleware"
-	"restaurant-api/internal/repository"
 )
 
 func Setup(
-	userRepo *repository.UserRepository,
-	restaurantRepo *repository.RestaurantRepository,
-	menuRepo *repository.MenuRepository,
-	reservationRepo *repository.ReservationRepository,
-	orderRepo *repository.OrderRepository,
+	userRepo handlers.UserRepository,
+	restaurantRepo handlers.RestaurantRepository,
+	menuRepo handlers.MenuRepository,
+	reservationRepo handlers.ReservationRepository,
+	orderRepo handlers.OrderRepository,
 	jwtSvc *auth.JWTService,
 ) *gin.Engine {
 	r := gin.Default()
