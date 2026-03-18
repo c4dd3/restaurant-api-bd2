@@ -7,150 +7,13 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
-	"time"
 
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/mock"
 	"restaurant-api/internal/auth"
 	"restaurant-api/internal/models"
 	"restaurant-api/internal/router"
+
+	"github.com/stretchr/testify/assert"
 )
-
-// ─── Mock Repositories ───────────────────────────────────────────────────────
-
-type MockUserRepo struct{ mock.Mock }
-
-func (m *MockUserRepo) Create(user *models.User) error {
-	args := m.Called(user)
-	user.ID = "user-uuid-1"
-	user.CreatedAt = time.Now()
-	user.UpdatedAt = time.Now()
-	return args.Error(0)
-}
-func (m *MockUserRepo) FindByEmail(email string) (*models.User, error) {
-	args := m.Called(email)
-	if args.Get(0) == nil {
-		return nil, args.Error(1)
-	}
-	return args.Get(0).(*models.User), args.Error(1)
-}
-func (m *MockUserRepo) FindByID(id string) (*models.User, error) {
-	args := m.Called(id)
-	if args.Get(0) == nil {
-		return nil, args.Error(1)
-	}
-	return args.Get(0).(*models.User), args.Error(1)
-}
-func (m *MockUserRepo) Update(id string, req *models.UpdateUserRequest) (*models.User, error) {
-	args := m.Called(id, req)
-	if args.Get(0) == nil {
-		return nil, args.Error(1)
-	}
-	return args.Get(0).(*models.User), args.Error(1)
-}
-func (m *MockUserRepo) Delete(id string) error {
-	args := m.Called(id)
-	return args.Error(0)
-}
-
-type MockRestaurantRepo struct{ mock.Mock }
-
-func (m *MockRestaurantRepo) Create(rest *models.Restaurant) error {
-	args := m.Called(rest)
-	rest.ID = "rest-uuid-1"
-	return args.Error(0)
-}
-func (m *MockRestaurantRepo) FindAll() ([]models.Restaurant, error) {
-	args := m.Called()
-	return args.Get(0).([]models.Restaurant), args.Error(1)
-}
-func (m *MockRestaurantRepo) FindByID(id string) (*models.Restaurant, error) {
-	args := m.Called(id)
-	if args.Get(0) == nil {
-		return nil, args.Error(1)
-	}
-	return args.Get(0).(*models.Restaurant), args.Error(1)
-}
-
-type MockMenuRepo struct{ mock.Mock }
-
-func (m *MockMenuRepo) Create(menu *models.Menu) error {
-	args := m.Called(menu)
-	menu.ID = "menu-uuid-1"
-	return args.Error(0)
-}
-func (m *MockMenuRepo) FindByID(id string) (*models.Menu, error) {
-	args := m.Called(id)
-	if args.Get(0) == nil {
-		return nil, args.Error(1)
-	}
-	return args.Get(0).(*models.Menu), args.Error(1)
-}
-func (m *MockMenuRepo) Update(id string, req *models.UpdateMenuRequest) (*models.Menu, error) {
-	args := m.Called(id, req)
-	if args.Get(0) == nil {
-		return nil, args.Error(1)
-	}
-	return args.Get(0).(*models.Menu), args.Error(1)
-}
-func (m *MockMenuRepo) Delete(id string) error {
-	args := m.Called(id)
-	return args.Error(0)
-}
-func (m *MockMenuRepo) FindItemByID(id string) (*models.MenuItem, error) {
-	args := m.Called(id)
-	if args.Get(0) == nil {
-		return nil, args.Error(1)
-	}
-	return args.Get(0).(*models.MenuItem), args.Error(1)
-}
-
-type MockReservationRepo struct{ mock.Mock }
-
-func (m *MockReservationRepo) Create(res *models.Reservation) error {
-	args := m.Called(res)
-	res.ID = "res-uuid-1"
-	return args.Error(0)
-}
-func (m *MockReservationRepo) FindByID(id string) (*models.Reservation, error) {
-	args := m.Called(id)
-	if args.Get(0) == nil {
-		return nil, args.Error(1)
-	}
-	return args.Get(0).(*models.Reservation), args.Error(1)
-}
-func (m *MockReservationRepo) Cancel(id string) error {
-	return m.Called(id).Error(0)
-}
-func (m *MockReservationRepo) CheckAvailability(restaurantID string, partySize int) (int, error) {
-	args := m.Called(restaurantID, partySize)
-	return args.Int(0), args.Error(1)
-}
-
-type MockOrderRepo struct{ mock.Mock }
-
-func (m *MockOrderRepo) Create(order *models.Order) error {
-	args := m.Called(order)
-	order.ID = "order-uuid-1"
-	return args.Error(0)
-}
-func (m *MockOrderRepo) FindByID(id string) (*models.Order, error) {
-	args := m.Called(id)
-	if args.Get(0) == nil {
-		return nil, args.Error(1)
-	}
-	return args.Get(0).(*models.Order), args.Error(1)
-}
-
-// ─── Helpers ─────────────────────────────────────────────────────────────────
-
-func makeTestToken(t *testing.T, role string) string {
-	t.Helper()
-	svc := auth.NewJWTService()
-	tok, err := svc.GenerateToken(&models.User{ID: "user-uuid-1", Email: "test@test.com", Role: role})
-	assert.NoError(t, err)
-	return tok
-}
 
 func makeRequest(method, path string, body interface{}, token string) (*httptest.ResponseRecorder, *http.Request) {
 	var buf bytes.Buffer
@@ -169,14 +32,6 @@ func makeRequest(method, path string, body interface{}, token string) (*httptest
 // For pure unit tests we use the mock setup below.
 func setupTestRouter(_ *sql.DB) {
 	// placeholder — real integration tests would use a real DB
-}
-
-// ─── Auth Tests ───────────────────────────────────────────────────────────────
-
-func TestRegister_Success(t *testing.T) {
-	// We need actual repository types for router.Setup — use integration-style stub below
-	// This test validates the handler logic through the real router wired with a real JWT service
-	assert.True(t, true) // placeholder — see integration tests
 }
 
 func TestJWT_GenerateAndValidate(t *testing.T) {

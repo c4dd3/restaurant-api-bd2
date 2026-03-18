@@ -4,34 +4,37 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
+
 	"restaurant-api/internal/middleware"
 	"restaurant-api/internal/models"
-	"restaurant-api/internal/repository"
 )
 
 type UserHandler struct {
-	userRepo *repository.UserRepository
+	userRepo UserRepository
 }
 
-func NewUserHandler(userRepo *repository.UserRepository) *UserHandler {
+func NewUserHandler(userRepo UserRepository) *UserHandler {
 	return &UserHandler{userRepo: userRepo}
 }
 
 // UpdateUser godoc
-// @Summary      Update a user
-// @Tags         users
-// @Security     BearerAuth
-// @Accept       json
-// @Produce      json
-// @Param        id   path  string  true  "User ID"
-// @Param        body body  models.UpdateUserRequest true "Update data"
-// @Success      200  {object}  models.User
-// @Router       /users/{id} [put]
+// @Summary Update a user
+// @Tags users
+// @Security BearerAuth
+// @Accept json
+// @Produce json
+// @Param id path string true "User ID"
+// @Param body body models.UpdateUserRequest true "Update data"
+// @Success 200 {object} models.User
+// @Router /users/{id} [put]
 func (h *UserHandler) Update(c *gin.Context) {
 	id := c.Param("id")
 	claims := middleware.ExtractClaims(c)
+	if claims == nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+		return
+	}
 
-	// Users can only update themselves; admins can update anyone
 	if claims.Role != models.RoleAdmin && claims.UserID != id {
 		c.JSON(http.StatusForbidden, gin.H{"error": "cannot update another user"})
 		return
@@ -57,15 +60,19 @@ func (h *UserHandler) Update(c *gin.Context) {
 }
 
 // DeleteUser godoc
-// @Summary      Delete a user
-// @Tags         users
-// @Security     BearerAuth
-// @Param        id   path  string  true  "User ID"
-// @Success      204
-// @Router       /users/{id} [delete]
+// @Summary Delete a user
+// @Tags users
+// @Security BearerAuth
+// @Param id path string true "User ID"
+// @Success 204
+// @Router /users/{id} [delete]
 func (h *UserHandler) Delete(c *gin.Context) {
 	id := c.Param("id")
 	claims := middleware.ExtractClaims(c)
+	if claims == nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+		return
+	}
 
 	if claims.Role != models.RoleAdmin && claims.UserID != id {
 		c.JSON(http.StatusForbidden, gin.H{"error": "cannot delete another user"})
