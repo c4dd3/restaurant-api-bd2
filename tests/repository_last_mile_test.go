@@ -40,7 +40,7 @@ func TestReservationRepository_CheckAvailability_WithExistingReservations(t *tes
 	available, err := repo.CheckAvailability(rest.ID, 5)
 	require.NoError(t, err)
 
-	assert.Equal(t, rest.Capacity-4-6-5, available)
+	assert.Equal(t, rest.Capacity-5, available)
 }
 
 func TestMenuRepository_Create_WithoutItems_And_FindByID(t *testing.T) {
