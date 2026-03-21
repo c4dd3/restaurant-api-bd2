@@ -51,3 +51,43 @@ func TestRestaurantList_EmptySlice(t *testing.T) {
 	assert.Contains(t, w.Body.String(), "[]")
 	repo.AssertExpectations(t)
 }
+
+func TestRestaurantList_EmptyNilSlice(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	repo := new(MockRestaurantRepo)
+	h := handlers.NewRestaurantHandler(repo)
+
+	repo.On("FindAll").Return([]models.Restaurant(nil), nil)
+
+	r := gin.New()
+	r.GET("/restaurants", h.List)
+
+	req, _ := http.NewRequest(http.MethodGet, "/restaurants", nil)
+	w := httptest.NewRecorder()
+
+	r.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusOK, w.Code)
+	assert.Equal(t, "[]", w.Body.String())
+	repo.AssertExpectations(t)
+}
+func TestRestaurantList_Error(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	repo := new(MockRestaurantRepo)
+	h := handlers.NewRestaurantHandler(repo)
+
+	repo.On("FindAll").Return([]models.Restaurant(nil), assert.AnError)
+
+	r := gin.New()
+	r.GET("/restaurants", h.List)
+
+	req, _ := http.NewRequest(http.MethodGet, "/restaurants", nil)
+	w := httptest.NewRecorder()
+
+	r.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusInternalServerError, w.Code)
+	repo.AssertExpectations(t)
+}
