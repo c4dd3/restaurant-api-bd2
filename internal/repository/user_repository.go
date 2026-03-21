@@ -22,22 +22,16 @@ func (r *UserRepository) Create(user *models.User) error {
 		Scan(&user.ID, &user.CreatedAt, &user.UpdatedAt)
 }
 
-// FindByEmail retrieves a user from the database by their email address
 func (r *UserRepository) FindByEmail(email string) (*models.User, error) {
-	// Initialize an empty User struct to hold the query results
 	user := &models.User{}
-	// Define the SQL query to select all user fields where email matches
 	query := `SELECT id, name, email, password, role, created_at, updated_at FROM users WHERE email = $1`
-	// Execute the query with the provided email and scan results into the user struct
 	err := r.db.QueryRow(query, email).Scan(
 		&user.ID, &user.Name, &user.Email, &user.Password,
 		&user.Role, &user.CreatedAt, &user.UpdatedAt,
 	)
-	// Check if no rows were found and return nil instead of an error
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, nil
 	}
-	// Return the user and any other error that occurred
 	return user, err
 }
 

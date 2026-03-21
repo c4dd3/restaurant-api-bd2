@@ -26,7 +26,6 @@ func (m *MockUserRepo) FindByID(id string) (*models.User, error) {
 
 func (m *MockUserRepo) Create(user *models.User) error {
 	args := m.Called(user)
-	// Si tu repo real setea ID, aquí puedes simularlo:
 	if user != nil && user.ID == "" {
 		user.ID = "user-123"
 	}

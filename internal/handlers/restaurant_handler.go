@@ -17,15 +17,6 @@ func NewRestaurantHandler(repo RestaurantRepository) *RestaurantHandler {
 	return &RestaurantHandler{repo: repo}
 }
 
-// CreateRestaurant godoc
-// @Summary Register a restaurant (admin only)
-// @Tags restaurants
-// @Security BearerAuth
-// @Accept json
-// @Produce json
-// @Param body body models.CreateRestaurantRequest true "Restaurant data"
-// @Success 201 {object} models.Restaurant
-// @Router /restaurants [post]
 func (h *RestaurantHandler) Create(c *gin.Context) {
 	var req models.CreateRestaurantRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -56,13 +47,6 @@ func (h *RestaurantHandler) Create(c *gin.Context) {
 	c.JSON(http.StatusCreated, rest)
 }
 
-// ListRestaurants godoc
-// @Summary List all restaurants
-// @Tags restaurants
-// @Security BearerAuth
-// @Produce json
-// @Success 200 {array} models.Restaurant
-// @Router /restaurants [get]
 func (h *RestaurantHandler) List(c *gin.Context) {
 	restaurants, err := h.repo.FindAll()
 	if err != nil {

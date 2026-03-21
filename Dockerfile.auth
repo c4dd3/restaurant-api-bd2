@@ -10,7 +10,7 @@ RUN go mod download
 
 COPY . .
 
-RUN CGO_ENABLED=0 GOOS=linux go build -ldflags="-s -w" -o /app/server ./cmd/api
+RUN CGO_ENABLED=0 GOOS=linux go build -ldflags="-s -w" -o /app/auth-server ./cmd/auth
 
 # ── Run stage ─────────────────────────────────────────────────────────────────
 FROM alpine:3.19
@@ -18,7 +18,7 @@ FROM alpine:3.19
 RUN apk add --no-cache ca-certificates tzdata
 
 WORKDIR /app
-COPY --from=builder /app/server .
+COPY --from=builder /app/auth-server .
 
-EXPOSE 8080
-ENTRYPOINT ["./server"]
+EXPOSE 8081
+ENTRYPOINT ["./auth-server"]

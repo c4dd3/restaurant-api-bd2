@@ -17,16 +17,6 @@ func NewUserHandler(userRepo UserRepository) *UserHandler {
 	return &UserHandler{userRepo: userRepo}
 }
 
-// UpdateUser godoc
-// @Summary Update a user
-// @Tags users
-// @Security BearerAuth
-// @Accept json
-// @Produce json
-// @Param id path string true "User ID"
-// @Param body body models.UpdateUserRequest true "Update data"
-// @Success 200 {object} models.User
-// @Router /users/{id} [put]
 func (h *UserHandler) Update(c *gin.Context) {
 	id := c.Param("id")
 	claims := middleware.ExtractClaims(c)
@@ -59,13 +49,6 @@ func (h *UserHandler) Update(c *gin.Context) {
 	c.JSON(http.StatusOK, user)
 }
 
-// DeleteUser godoc
-// @Summary Delete a user
-// @Tags users
-// @Security BearerAuth
-// @Param id path string true "User ID"
-// @Success 204
-// @Router /users/{id} [delete]
 func (h *UserHandler) Delete(c *gin.Context) {
 	id := c.Param("id")
 	claims := middleware.ExtractClaims(c)

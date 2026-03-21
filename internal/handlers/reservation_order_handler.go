@@ -15,21 +15,9 @@ type ReservationHandler struct {
 }
 
 func NewReservationHandler(repo ReservationRepository, restaurantRepo RestaurantRepository) *ReservationHandler {
-	return &ReservationHandler{
-		repo:           repo,
-		restaurantRepo: restaurantRepo,
-	}
+	return &ReservationHandler{repo: repo, restaurantRepo: restaurantRepo}
 }
 
-// CreateReservation godoc
-// @Summary Create a reservation
-// @Tags reservations
-// @Security BearerAuth
-// @Accept json
-// @Produce json
-// @Param body body models.CreateReservationRequest true "Reservation data"
-// @Success 201 {object} models.Reservation
-// @Router /reservations [post]
 func (h *ReservationHandler) Create(c *gin.Context) {
 	var req models.CreateReservationRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -76,13 +64,6 @@ func (h *ReservationHandler) Create(c *gin.Context) {
 	c.JSON(http.StatusCreated, reservation)
 }
 
-// CancelReservation godoc
-// @Summary Cancel a reservation
-// @Tags reservations
-// @Security BearerAuth
-// @Param id path string true "Reservation ID"
-// @Success 200 {object} gin.H
-// @Router /reservations/{id} [delete]
 func (h *ReservationHandler) Cancel(c *gin.Context) {
 	id := c.Param("id")
 
@@ -118,22 +99,9 @@ type OrderHandler struct {
 }
 
 func NewOrderHandler(orderRepo OrderRepository, menuRepo MenuRepository, restaurantRepo RestaurantRepository) *OrderHandler {
-	return &OrderHandler{
-		orderRepo:      orderRepo,
-		menuRepo:       menuRepo,
-		restaurantRepo: restaurantRepo,
-	}
+	return &OrderHandler{orderRepo: orderRepo, menuRepo: menuRepo, restaurantRepo: restaurantRepo}
 }
 
-// CreateOrder godoc
-// @Summary Place an order
-// @Tags orders
-// @Security BearerAuth
-// @Accept json
-// @Produce json
-// @Param body body models.CreateOrderRequest true "Order data"
-// @Success 201 {object} models.Order
-// @Router /orders [post]
 func (h *OrderHandler) Create(c *gin.Context) {
 	var req models.CreateOrderRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -172,17 +140,13 @@ func (h *OrderHandler) Create(c *gin.Context) {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "menu item not available: " + menuItem.Name})
 			return
 		}
-
-		lineTotal := menuItem.Price * float64(itemReq.Quantity)
-		total += lineTotal
-
+		total += menuItem.Price * float64(itemReq.Quantity)
 		order.Items = append(order.Items, models.OrderItem{
 			MenuItemID: itemReq.MenuItemID,
 			Quantity:   itemReq.Quantity,
 			Price:      menuItem.Price,
 		})
 	}
-
 	order.Total = total
 
 	if err := h.orderRepo.Create(order); err != nil {
@@ -193,14 +157,6 @@ func (h *OrderHandler) Create(c *gin.Context) {
 	c.JSON(http.StatusCreated, order)
 }
 
-// GetOrder godoc
-// @Summary Get order details
-// @Tags orders
-// @Security BearerAuth
-// @Produce json
-// @Param id path string true "Order ID"
-// @Success 200 {object} models.Order
-// @Router /orders/{id} [get]
 func (h *OrderHandler) Get(c *gin.Context) {
 	order, err := h.orderRepo.FindByID(c.Param("id"))
 	if err != nil {

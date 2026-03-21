@@ -48,8 +48,6 @@ func (r *ReservationRepository) CheckAvailability(restaurantID string, partySize
 	return capacity - partySize, nil
 }
 
-// OrderRepository
-
 type OrderRepository struct {
 	db *sql.DB
 }

@@ -1,6 +1,30 @@
 # Reserva Inteligente de Restaurantes — API REST
 
-API REST desarrollada en **Go (Gin)** con autenticación **JWT**, base de datos **PostgreSQL**, y contenedorización con **Docker**.
+API REST desarrollada en **Go (Gin)** con autenticación **JWT** en un **servicio separado**, base de datos **PostgreSQL**, y contenedorización con **Docker**.
+
+---
+
+## Arquitectura de servicios
+
+```
+┌─────────────────────────────────────────────────────┐
+│                  Docker Compose                     │
+│                                                     │
+│  ┌──────────────┐   ┌──────────────┐   ┌─────────┐ │
+│  │ auth-service │   │     api      │   │   db    │ │
+│  │   :8081      │   │   :8080      │   │  :5432  │ │
+│  │              │   │              │   │         │ │
+│  │ POST         │   │ GET  /users  │   │ Postgres│ │
+│  │ /auth/       │   │ POST /rest.. │   │   16    │ │
+│  │   register   │   │ POST /menus  │   │         │ │
+│  │   login      │   │ POST /reserv │   │         │ │
+│  └──────┬───────┘   └──────┬───────┘   └────┬────┘ │
+│         └──────────────────┴────────────────┘      │
+│                   comparten JWT_SECRET              │
+└─────────────────────────────────────────────────────┘
+```
+
+El `auth-service` emite tokens JWT. La `api` los valida usando el mismo `JWT_SECRET` — sin llamadas HTTP entre servicios.
 
 ---
 
@@ -20,16 +44,20 @@ API REST desarrollada en **Go (Gin)** con autenticación **JWT**, base de datos 
 
 ```
 restaurant-api/
-├── cmd/api/          # Punto de entrada (main.go)
+├── cmd/
+│   ├── api/          # Entrypoint del servicio API
+│   └── auth/         # Entrypoint del servicio de autenticación
 ├── internal/
-│   ├── auth/         # Servicio JWT
-│   ├── handlers/     # Manejadores HTTP (auth, users, restaurants, menus, reservations, orders)
-│   ├── middleware/   # Middleware de autenticación y autorización
-│   ├── models/       # Estructuras de datos y DTOs
-│   ├── repository/   # Acceso a base de datos
-│   └── router/       # Configuración de rutas
+│   ├── auth/         # Lógica JWT (GenerateToken, ValidateToken)
+│   ├── authrouter/   # Router del auth-service (reutilizable en tests)
+│   ├── handlers/     # Handlers HTTP + interfaces de repositorio
+│   ├── middleware/   # Auth middleware y AdminOnly
+│   ├── models/       # Structs y DTOs
+│   ├── repository/   # Acceso a PostgreSQL
+│   └── router/       # Router del API service
 ├── tests/            # Tests unitarios e integración
-├── Dockerfile
+├── Dockerfile        # Imagen del API service
+├── Dockerfile.auth   # Imagen del auth-service
 ├── docker-compose.yml
 └── .env.example
 ```
@@ -38,37 +66,92 @@ restaurant-api/
 
 ## Cómo correr el proyecto
 
-### 1. Con Docker Compose (recomendado)
+### Con Docker Compose (recomendado)
 
 ```bash
-# Clonar el repositorio
-git clone <repo-url>
-cd restaurant-api
-
-# Copiar variables de entorno
 cp .env.example .env
-
-# Levantar servicios
 docker compose up --build
 ```
 
-La API quedará disponible en `http://localhost:8080`.
+| Servicio | URL |
+|---|---|
+| Auth service | http://localhost:8081 |
+| API service | http://localhost:8080 |
 
-### 2. Local (sin Docker)
+---
 
-Requisitos: Go 1.22+, PostgreSQL corriendo.
+## Endpoints
+
+### Auth Service (`localhost:8081`) — público
+
+| Método | Endpoint | Descripción |
+|---|---|---|
+| `POST` | `/auth/register` | Registro de usuario |
+| `POST` | `/auth/login` | Login y obtención de JWT |
+
+### API Service (`localhost:8080`) — requiere JWT
+
+| Método | Endpoint | Descripción | Rol |
+|---|---|---|---|
+| `GET` | `/users/me` | Perfil del usuario autenticado | todos |
+| `PUT` | `/users/:id` | Actualizar usuario | propio/admin |
+| `DELETE` | `/users/:id` | Eliminar usuario | propio/admin |
+| `POST` | `/restaurants` | Registrar restaurante | admin |
+| `GET` | `/restaurants` | Listar restaurantes | todos |
+| `POST` | `/menus` | Crear menú | admin |
+| `GET` | `/menus/:id` | Ver menú | todos |
+| `PUT` | `/menus/:id` | Actualizar menú | admin |
+| `DELETE` | `/menus/:id` | Eliminar menú | admin |
+| `POST` | `/reservations` | Crear reserva | todos |
+| `DELETE` | `/reservations/:id` | Cancelar reserva | propio/admin |
+| `POST` | `/orders` | Realizar pedido | todos |
+| `GET` | `/orders/:id` | Ver pedido | propio/admin |
+
+---
+
+## Ejemplos de uso
 
 ```bash
-cp .env.example .env
-# editar .env con sus credenciales de BD
+# 1. Registrar (auth-service)
+curl -X POST http://localhost:8081/auth/register \
+  -H "Content-Type: application/json" \
+  -d '{"name":"Ana","email":"ana@test.com","password":"secret123","role":"client"}'
 
-go mod download
-go run ./cmd/api
+# 2. Login (auth-service)
+curl -X POST http://localhost:8081/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"email":"ana@test.com","password":"secret123"}'
+
+# 3. Usar el token en la API
+curl http://localhost:8080/restaurants \
+  -H "Authorization: Bearer <TOKEN>"
 ```
 
 ---
 
-## Variables de Entorno
+## Correr pruebas
+
+```bash
+# Unitarias (sin BD)
+go test ./tests/... -run "TestJWT|TestOrder|TestMenu|TestUser|TestReservation|TestMiddleware|TestRouter" -v
+
+# Auth service
+go test ./cmd/auth/... -v
+
+# API service
+go test ./cmd/api/... -v
+
+# Integración (requiere BD)
+TEST_DB_HOST=localhost TEST_DB_NAME=restaurant_test go test ./tests/... -v -count=1
+
+# Coverage total
+go test ./... -coverprofile=coverage.out
+go tool cover -html=coverage.out
+```
+
+---
+
+## Variables de entorno
 
 | Variable | Default | Descripción |
 |---|---|---|
@@ -77,130 +160,7 @@ go run ./cmd/api
 | `DB_USER` | `postgres` | Usuario de BD |
 | `DB_PASSWORD` | `postgres` | Contraseña de BD |
 | `DB_NAME` | `restaurant_db` | Nombre de la BD |
-| `JWT_SECRET` | *(ver .env)* | Llave secreta para firmar tokens |
-| `PORT` | `8080` | Puerto del servidor |
-| `GIN_MODE` | `debug` | Modo de Gin (`debug`/`release`) |
-
----
-
-## Endpoints
-
-### Autenticación (públicos)
-
-| Método | Endpoint | Descripción |
-|---|---|---|
-| `POST` | `/auth/register` | Registro de usuario |
-| `POST` | `/auth/login` | Login y obtención de JWT |
-
-### Usuarios (requiere JWT)
-
-| Método | Endpoint | Descripción |
-|---|---|---|
-| `GET` | `/users/me` | Perfil del usuario autenticado |
-| `PUT` | `/users/:id` | Actualizar usuario |
-| `DELETE` | `/users/:id` | Eliminar usuario |
-
-### Restaurantes (requiere JWT)
-
-| Método | Endpoint | Descripción | Rol |
-|---|---|---|---|
-| `POST` | `/restaurants` | Registrar restaurante | admin |
-| `GET` | `/restaurants` | Listar restaurantes | todos |
-
-### Menús (requiere JWT)
-
-| Método | Endpoint | Descripción | Rol |
-|---|---|---|---|
-| `POST` | `/menus` | Crear menú | admin |
-| `GET` | `/menus/:id` | Ver menú | todos |
-| `PUT` | `/menus/:id` | Actualizar menú | admin |
-| `DELETE` | `/menus/:id` | Eliminar menú | admin |
-
-### Reservas (requiere JWT)
-
-| Método | Endpoint | Descripción |
-|---|---|---|
-| `POST` | `/reservations` | Crear reserva |
-| `DELETE` | `/reservations/:id` | Cancelar reserva |
-
-### Pedidos (requiere JWT)
-
-| Método | Endpoint | Descripción |
-|---|---|---|
-| `POST` | `/orders` | Realizar pedido |
-| `GET` | `/orders/:id` | Ver detalle de pedido |
-
----
-
-## Ejemplos de uso (curl)
-
-```bash
-# Registrar usuario
-curl -X POST http://localhost:8080/auth/register \
-  -H "Content-Type: application/json" \
-  -d '{"name":"Ana","email":"ana@test.com","password":"secret123","role":"client"}'
-
-# Login
-curl -X POST http://localhost:8080/auth/login \
-  -H "Content-Type: application/json" \
-  -d '{"email":"ana@test.com","password":"secret123"}'
-
-# Crear restaurante (admin)
-curl -X POST http://localhost:8080/restaurants \
-  -H "Authorization: Bearer <TOKEN>" \
-  -H "Content-Type: application/json" \
-  -d '{"name":"La Piazza","address":"Calle 5","phone":"2222-3333","capacity":60}'
-
-# Crear menú
-curl -X POST http://localhost:8080/menus \
-  -H "Authorization: Bearer <TOKEN>" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "restaurant_id":"<RESTAURANT_ID>",
-    "name":"Almuerzo",
-    "items":[{"name":"Pasta","price":9.99,"available":true}]
-  }'
-
-# Hacer reserva
-curl -X POST http://localhost:8080/reservations \
-  -H "Authorization: Bearer <TOKEN>" \
-  -H "Content-Type: application/json" \
-  -d '{"restaurant_id":"<ID>","date":"2026-04-01T19:00:00Z","party_size":4}'
-
-# Hacer pedido
-curl -X POST http://localhost:8080/orders \
-  -H "Authorization: Bearer <TOKEN>" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "restaurant_id":"<ID>",
-    "items":[{"menu_item_id":"<ITEM_ID>","quantity":2}],
-    "pickup":false
-  }'
-```
-
----
-
-## Correr Pruebas
-
-```bash
-# Unitarias (sin BD)
-go test ./tests/... -run TestJWT -v
-go test ./tests/... -run TestOrder -v
-go test ./tests/... -run TestModel -v
-
-# Integración (requiere BD)
-TEST_DB_HOST=localhost TEST_DB_NAME=restaurant_test go test ./tests/... -v -count=1
-
-# Coverage
-go test ./... -coverprofile=coverage.out
-go tool cover -html=coverage.out
-```
-
----
-
-## Roles y Permisos
-
-- **client**: puede registrarse, ver restaurantes/menús, hacer reservas y pedidos.
-- **admin**: todo lo anterior + crear/editar restaurantes y menús.
-
-Los tokens JWT expiran en **24 horas**.
+| `JWT_SECRET` | *(ver .env)* | Secreto compartido entre servicios |
+| `PORT` | `8080` | Puerto del API service |
+| `AUTH_PORT` | `8081` | Puerto del auth-service |
+| `GIN_MODE` | `debug` | Modo Gin (`debug`/`release`) |

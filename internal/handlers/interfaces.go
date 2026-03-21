@@ -1,4 +1,3 @@
-// internal/handlers/interfaces.go
 package handlers
 
 import "restaurant-api/internal/models"

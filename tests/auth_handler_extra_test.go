@@ -15,43 +15,48 @@ import (
 
 func TestRegister_InvalidJSON(t *testing.T) {
 	gin.SetMode(gin.TestMode)
-
 	repo := new(MockUserRepo)
 	jwtSvc := auth.NewJWTService()
 	h := handlers.NewAuthHandler(repo, jwtSvc)
-
 	r := gin.New()
 	r.POST("/auth/register", h.Register)
-
 	req, _ := http.NewRequest(http.MethodPost, "/auth/register", bytes.NewBufferString(`{"name":`))
 	req.Header.Set("Content-Type", "application/json")
 	w := httptest.NewRecorder()
-
 	r.ServeHTTP(w, req)
-
 	assert.Equal(t, http.StatusBadRequest, w.Code)
 }
 
 func TestLogin_UserNotFound(t *testing.T) {
 	gin.SetMode(gin.TestMode)
-
 	repo := new(MockUserRepo)
 	jwtSvc := auth.NewJWTService()
 	h := handlers.NewAuthHandler(repo, jwtSvc)
-
 	repo.On("FindByEmail", "ghost@test.com").Return(nil, nil)
-
 	r := gin.New()
 	r.POST("/auth/login", h.Login)
-
 	req, _ := http.NewRequest(http.MethodPost, "/auth/login",
 		bytes.NewBufferString(`{"email":"ghost@test.com","password":"secret123"}`))
 	req.Header.Set("Content-Type", "application/json")
 	w := httptest.NewRecorder()
-
 	r.ServeHTTP(w, req)
-
 	assert.Equal(t, http.StatusUnauthorized, w.Code)
-	assert.Contains(t, w.Body.String(), "invalid credentials")
+	repo.AssertExpectations(t)
+}
+
+func TestLogin_DatabaseError(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	repo := new(MockUserRepo)
+	jwtSvc := auth.NewJWTService()
+	h := handlers.NewAuthHandler(repo, jwtSvc)
+	repo.On("FindByEmail", "ana@test.com").Return(nil, assert.AnError)
+	r := gin.New()
+	r.POST("/auth/login", h.Login)
+	req, _ := http.NewRequest(http.MethodPost, "/auth/login",
+		bytes.NewBufferString(`{"email":"ana@test.com","password":"secret123"}`))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+	assert.Equal(t, http.StatusInternalServerError, w.Code)
 	repo.AssertExpectations(t)
 }

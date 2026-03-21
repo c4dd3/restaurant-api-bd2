@@ -2,13 +2,11 @@ package models
 
 import "time"
 
-// User roles
 const (
 	RoleClient = "client"
 	RoleAdmin  = "admin"
 )
 
-// Order status
 const (
 	StatusPending   = "pending"
 	StatusConfirmed = "confirmed"
@@ -68,15 +66,15 @@ type Reservation struct {
 }
 
 type Order struct {
-	ID           string      `json:"id" db:"id"`
-	UserID       string      `json:"user_id" db:"user_id"`
-	RestaurantID string      `json:"restaurant_id" db:"restaurant_id"`
-	ReservationID *string    `json:"reservation_id,omitempty" db:"reservation_id"`
-	Items        []OrderItem `json:"items,omitempty"`
-	Total        float64     `json:"total" db:"total"`
-	Status       string      `json:"status" db:"status"`
-	Pickup       bool        `json:"pickup" db:"pickup"`
-	CreatedAt    time.Time   `json:"created_at" db:"created_at"`
+	ID            string      `json:"id" db:"id"`
+	UserID        string      `json:"user_id" db:"user_id"`
+	RestaurantID  string      `json:"restaurant_id" db:"restaurant_id"`
+	ReservationID *string     `json:"reservation_id,omitempty" db:"reservation_id"`
+	Items         []OrderItem `json:"items,omitempty"`
+	Total         float64     `json:"total" db:"total"`
+	Status        string      `json:"status" db:"status"`
+	Pickup        bool        `json:"pickup" db:"pickup"`
+	CreatedAt     time.Time   `json:"created_at" db:"created_at"`
 }
 
 type OrderItem struct {
@@ -86,8 +84,6 @@ type OrderItem struct {
 	Quantity   int     `json:"quantity" db:"quantity"`
 	Price      float64 `json:"price" db:"price"`
 }
-
-// Request/Response DTOs
 
 type RegisterRequest struct {
 	Name     string `json:"name" binding:"required,min=2"`
@@ -147,10 +143,10 @@ type CreateReservationRequest struct {
 }
 
 type CreateOrderRequest struct {
-	RestaurantID  string            `json:"restaurant_id" binding:"required"`
-	ReservationID *string           `json:"reservation_id"`
+	RestaurantID  string             `json:"restaurant_id" binding:"required"`
+	ReservationID *string            `json:"reservation_id"`
 	Items         []OrderItemRequest `json:"items" binding:"required,min=1"`
-	Pickup        bool              `json:"pickup"`
+	Pickup        bool               `json:"pickup"`
 }
 
 type OrderItemRequest struct {

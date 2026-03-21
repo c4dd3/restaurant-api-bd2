@@ -7,8 +7,8 @@ import (
 	"github.com/joho/godotenv"
 
 	"restaurant-api/internal/auth"
+	"restaurant-api/internal/authrouter"
 	"restaurant-api/internal/repository"
-	"restaurant-api/internal/router"
 )
 
 var (
@@ -16,7 +16,6 @@ var (
 	newDB         = repository.NewDB
 	runMigrations = repository.RunMigrations
 	newJWTService = auth.NewJWTService
-	setupRouter   = router.Setup
 	runServer     = func(run func(...string) error, addr string) error { return run(addr) }
 	runApp        = run
 	exitFunc      = os.Exit
@@ -36,27 +35,21 @@ func run() error {
 	}
 
 	userRepo := repository.NewUserRepository(db)
-	restaurantRepo := repository.NewRestaurantRepository(db)
-	menuRepo := repository.NewMenuRepository(db)
-	reservationRepo := repository.NewReservationRepository(db)
-	orderRepo := repository.NewOrderRepository(db)
-
 	jwtSvc := newJWTService()
+	r := authrouter.Setup(userRepo, jwtSvc)
 
-	r := setupRouter(userRepo, restaurantRepo, menuRepo, reservationRepo, orderRepo, jwtSvc)
-
-	port := os.Getenv("PORT")
+	port := os.Getenv("AUTH_PORT")
 	if port == "" {
-		port = "8080"
+		port = "8081"
 	}
 
-	log.Printf("🚀 Server running on port %s", port)
+	log.Printf("🔐 Auth service running on port %s", port)
 	return runServer(r.Run, ":"+port)
 }
 
 func main() {
 	if err := runApp(); err != nil {
-		log.Printf("startup/server error: %v", err)
+		log.Printf("auth-service error: %v", err)
 		exitFunc(1)
 	}
 }

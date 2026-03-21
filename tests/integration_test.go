@@ -1,6 +1,3 @@
-//go:build integration
-// +build integration
-
 package tests
 
 import (
@@ -18,15 +15,19 @@ import (
 	"restaurant-api/internal/repository"
 	"restaurant-api/internal/router"
 
+	// auth-service router (built inline for integration tests)
+	authrouter "restaurant-api/internal/authrouter"
+
 	_ "github.com/lib/pq"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
 var (
-	testDB     *sql.DB
-	testEngine http.Handler
-	jwtSvc     *auth.JWTService
+	testDB      *sql.DB
+	testAPI     http.Handler // main API service (no auth routes)
+	testAuthSvc http.Handler // auth service (/auth/register, /auth/login)
+	jwtSvc      *auth.JWTService
 )
 
 func getTestDB() (*sql.DB, error) {
@@ -57,7 +58,6 @@ func setupIntegration(t *testing.T) {
 	if err := db.Ping(); err != nil {
 		t.Skip("cannot reach test database:", err)
 	}
-
 	if err := repository.RunMigrations(db); err != nil {
 		t.Fatal("migration failed:", err)
 	}
@@ -71,9 +71,27 @@ func setupIntegration(t *testing.T) {
 	reservationRepo := repository.NewReservationRepository(db)
 	orderRepo := repository.NewOrderRepository(db)
 
-	testEngine = router.Setup(userRepo, restaurantRepo, menuRepo, reservationRepo, orderRepo, jwtSvc)
+	// API service — no auth routes
+	testAPI = router.Setup(userRepo, restaurantRepo, menuRepo, reservationRepo, orderRepo, jwtSvc)
+
+	// Auth service — only /auth/register and /auth/login
+	testAuthSvc = authrouter.Setup(userRepo, jwtSvc)
 }
 
+// doAuthRequest sends to the auth-service
+func doAuthRequest(method, path string, body interface{}) *httptest.ResponseRecorder {
+	var buf bytes.Buffer
+	if body != nil {
+		json.NewEncoder(&buf).Encode(body)
+	}
+	req, _ := http.NewRequest(method, path, &buf)
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	testAuthSvc.ServeHTTP(w, req)
+	return w
+}
+
+// doRequest sends to the main API service
 func doRequest(method, path string, body interface{}, token string) *httptest.ResponseRecorder {
 	var buf bytes.Buffer
 	if body != nil {
@@ -85,27 +103,44 @@ func doRequest(method, path string, body interface{}, token string) *httptest.Re
 		req.Header.Set("Authorization", "Bearer "+token)
 	}
 	w := httptest.NewRecorder()
-	testEngine.ServeHTTP(w, req)
+	testAPI.ServeHTTP(w, req)
 	return w
 }
 
-// ─── Integration Tests ────────────────────────────────────────────────────────
+// ─── Health checks ────────────────────────────────────────────────────────────
 
-func TestIntegration_Health(t *testing.T) {
+func TestIntegration_API_Health(t *testing.T) {
 	setupIntegration(t)
 	w := doRequest(http.MethodGet, "/health", nil, "")
 	assert.Equal(t, http.StatusOK, w.Code)
+	assert.Contains(t, w.Body.String(), `"service":"api"`)
 }
+
+func TestIntegration_AuthSvc_Health(t *testing.T) {
+	setupIntegration(t)
+	w := doAuthRequest(http.MethodGet, "/health", nil)
+	assert.Equal(t, http.StatusOK, w.Code)
+	assert.Contains(t, w.Body.String(), `"service":"auth"`)
+}
+
+// Auth routes must NOT exist on the API service
+func TestIntegration_API_AuthRoutes_NotFound(t *testing.T) {
+	setupIntegration(t)
+	w := doRequest(http.MethodPost, "/auth/register", nil, "")
+	assert.Equal(t, http.StatusNotFound, w.Code)
+	w = doRequest(http.MethodPost, "/auth/login", nil, "")
+	assert.Equal(t, http.StatusNotFound, w.Code)
+}
+
+// ─── Auth service tests ───────────────────────────────────────────────────────
 
 func TestIntegration_Register(t *testing.T) {
 	setupIntegration(t)
 	email := fmt.Sprintf("user_%d@test.com", time.Now().UnixNano())
-	body := map[string]interface{}{
+	w := doAuthRequest(http.MethodPost, "/auth/register", map[string]interface{}{
 		"name": "Test User", "email": email, "password": "password123", "role": "client",
-	}
-	w := doRequest(http.MethodPost, "/auth/register", body, "")
+	})
 	assert.Equal(t, http.StatusCreated, w.Code)
-
 	var resp map[string]interface{}
 	json.Unmarshal(w.Body.Bytes(), &resp)
 	assert.NotEmpty(t, resp["token"])
@@ -117,31 +152,32 @@ func TestIntegration_Register_DuplicateEmail(t *testing.T) {
 	body := map[string]interface{}{
 		"name": "User", "email": email, "password": "password123", "role": "client",
 	}
-	doRequest(http.MethodPost, "/auth/register", body, "")
-	w := doRequest(http.MethodPost, "/auth/register", body, "")
+	doAuthRequest(http.MethodPost, "/auth/register", body)
+	w := doAuthRequest(http.MethodPost, "/auth/register", body)
 	assert.Equal(t, http.StatusConflict, w.Code)
 }
 
 func TestIntegration_Login(t *testing.T) {
 	setupIntegration(t)
 	email := fmt.Sprintf("login_%d@test.com", time.Now().UnixNano())
-	doRequest(http.MethodPost, "/auth/register", map[string]interface{}{
+	doAuthRequest(http.MethodPost, "/auth/register", map[string]interface{}{
 		"name": "User", "email": email, "password": "mypassword", "role": "client",
-	}, "")
-
-	w := doRequest(http.MethodPost, "/auth/login", map[string]interface{}{
+	})
+	w := doAuthRequest(http.MethodPost, "/auth/login", map[string]interface{}{
 		"email": email, "password": "mypassword",
-	}, "")
+	})
 	assert.Equal(t, http.StatusOK, w.Code)
 }
 
 func TestIntegration_Login_WrongPassword(t *testing.T) {
 	setupIntegration(t)
-	w := doRequest(http.MethodPost, "/auth/login", map[string]interface{}{
+	w := doAuthRequest(http.MethodPost, "/auth/login", map[string]interface{}{
 		"email": "nobody@test.com", "password": "wrong",
-	}, "")
+	})
 	assert.Equal(t, http.StatusUnauthorized, w.Code)
 }
+
+// ─── API service tests (token obtained from auth-service) ────────────────────
 
 func TestIntegration_GetMe_Unauthorized(t *testing.T) {
 	setupIntegration(t)
@@ -152,10 +188,9 @@ func TestIntegration_GetMe_Unauthorized(t *testing.T) {
 func TestIntegration_GetMe_Authorized(t *testing.T) {
 	setupIntegration(t)
 	email := fmt.Sprintf("me_%d@test.com", time.Now().UnixNano())
-	regW := doRequest(http.MethodPost, "/auth/register", map[string]interface{}{
+	regW := doAuthRequest(http.MethodPost, "/auth/register", map[string]interface{}{
 		"name": "Me User", "email": email, "password": "password123", "role": "client",
-	}, "")
-
+	})
 	var regResp map[string]interface{}
 	json.Unmarshal(regW.Body.Bytes(), &regResp)
 	token := regResp["token"].(string)
@@ -166,11 +201,10 @@ func TestIntegration_GetMe_Authorized(t *testing.T) {
 
 func TestIntegration_CreateRestaurant_AdminOnly(t *testing.T) {
 	setupIntegration(t)
-	// Client token should be forbidden
 	email := fmt.Sprintf("client_%d@test.com", time.Now().UnixNano())
-	regW := doRequest(http.MethodPost, "/auth/register", map[string]interface{}{
+	regW := doAuthRequest(http.MethodPost, "/auth/register", map[string]interface{}{
 		"name": "Client", "email": email, "password": "password123", "role": "client",
-	}, "")
+	})
 	var regResp map[string]interface{}
 	json.Unmarshal(regW.Body.Bytes(), &regResp)
 	clientToken := regResp["token"].(string)
@@ -184,9 +218,9 @@ func TestIntegration_CreateRestaurant_AdminOnly(t *testing.T) {
 func TestIntegration_CreateRestaurant_Admin(t *testing.T) {
 	setupIntegration(t)
 	email := fmt.Sprintf("admin_%d@test.com", time.Now().UnixNano())
-	regW := doRequest(http.MethodPost, "/auth/register", map[string]interface{}{
+	regW := doAuthRequest(http.MethodPost, "/auth/register", map[string]interface{}{
 		"name": "Admin", "email": email, "password": "password123", "role": "admin",
-	}, "")
+	})
 	var regResp map[string]interface{}
 	json.Unmarshal(regW.Body.Bytes(), &regResp)
 	adminToken := regResp["token"].(string)
@@ -200,9 +234,9 @@ func TestIntegration_CreateRestaurant_Admin(t *testing.T) {
 func TestIntegration_ListRestaurants(t *testing.T) {
 	setupIntegration(t)
 	email := fmt.Sprintf("list_%d@test.com", time.Now().UnixNano())
-	regW := doRequest(http.MethodPost, "/auth/register", map[string]interface{}{
+	regW := doAuthRequest(http.MethodPost, "/auth/register", map[string]interface{}{
 		"name": "User", "email": email, "password": "password123", "role": "client",
-	}, "")
+	})
 	var regResp map[string]interface{}
 	json.Unmarshal(regW.Body.Bytes(), &regResp)
 	token := regResp["token"].(string)
@@ -211,12 +245,14 @@ func TestIntegration_ListRestaurants(t *testing.T) {
 	assert.Equal(t, http.StatusOK, w.Code)
 }
 
+// ─── Helpers ─────────────────────────────────────────────────────────────────
+
 func registerAndGetToken(t *testing.T, role string) string {
 	t.Helper()
 	email := fmt.Sprintf("%s_%d@test.com", role, time.Now().UnixNano())
-	regW := doRequest(http.MethodPost, "/auth/register", map[string]interface{}{
+	regW := doAuthRequest(http.MethodPost, "/auth/register", map[string]interface{}{
 		"name": role + "User", "email": email, "password": "password123", "role": role,
-	}, "")
+	})
 	require.Equal(t, http.StatusCreated, regW.Code)
 	var resp map[string]interface{}
 	json.Unmarshal(regW.Body.Bytes(), &resp)
@@ -240,13 +276,10 @@ func TestIntegration_FullFlow_MenuAndReservation(t *testing.T) {
 	clientToken := registerAndGetToken(t, "client")
 	restID := createRestaurantAndGetID(t, adminToken)
 
-	// Create menu
 	menuW := doRequest(http.MethodPost, "/menus", map[string]interface{}{
 		"restaurant_id": restID,
 		"name":          "Dinner Menu",
-		"items": []map[string]interface{}{
-			{"name": "Pasta", "price": 12.99, "available": true},
-		},
+		"items":         []map[string]interface{}{{"name": "Pasta", "price": 12.99, "available": true}},
 	}, adminToken)
 	assert.Equal(t, http.StatusCreated, menuW.Code)
 
@@ -254,11 +287,9 @@ func TestIntegration_FullFlow_MenuAndReservation(t *testing.T) {
 	json.Unmarshal(menuW.Body.Bytes(), &menuResp)
 	menuID := menuResp["id"].(string)
 
-	// Get menu
 	getMenuW := doRequest(http.MethodGet, "/menus/"+menuID, nil, clientToken)
 	assert.Equal(t, http.StatusOK, getMenuW.Code)
 
-	// Create reservation
 	resW := doRequest(http.MethodPost, "/reservations", map[string]interface{}{
 		"restaurant_id": restID,
 		"date":          time.Now().Add(24 * time.Hour).Format(time.RFC3339),
@@ -270,7 +301,6 @@ func TestIntegration_FullFlow_MenuAndReservation(t *testing.T) {
 	json.Unmarshal(resW.Body.Bytes(), &resResp)
 	resID := resResp["id"].(string)
 
-	// Cancel reservation
 	cancelW := doRequest(http.MethodDelete, "/reservations/"+resID, nil, clientToken)
 	assert.Equal(t, http.StatusOK, cancelW.Code)
 }
@@ -295,9 +325,9 @@ func TestIntegration_DeleteMenu(t *testing.T) {
 func TestIntegration_UpdateUser(t *testing.T) {
 	setupIntegration(t)
 	email := fmt.Sprintf("upd_%d@test.com", time.Now().UnixNano())
-	regW := doRequest(http.MethodPost, "/auth/register", map[string]interface{}{
+	regW := doAuthRequest(http.MethodPost, "/auth/register", map[string]interface{}{
 		"name": "Original", "email": email, "password": "password123", "role": "client",
-	}, "")
+	})
 	var regResp map[string]interface{}
 	json.Unmarshal(regW.Body.Bytes(), &regResp)
 	token := regResp["token"].(string)

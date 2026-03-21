@@ -17,20 +17,9 @@ type AuthHandler struct {
 }
 
 func NewAuthHandler(userRepo UserRepository, jwtSvc *auth.JWTService) *AuthHandler {
-	return &AuthHandler{
-		userRepo: userRepo,
-		jwtSvc:   jwtSvc,
-	}
+	return &AuthHandler{userRepo: userRepo, jwtSvc: jwtSvc}
 }
 
-// Register godoc
-// @Summary Register a new user
-// @Tags auth
-// @Accept json
-// @Produce json
-// @Param body body models.RegisterRequest true "User registration data"
-// @Success 201 {object} models.LoginResponse
-// @Router /auth/register [post]
 func (h *AuthHandler) Register(c *gin.Context) {
 	var req models.RegisterRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -72,20 +61,9 @@ func (h *AuthHandler) Register(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusCreated, models.LoginResponse{
-		Token: token,
-		User:  *user,
-	})
+	c.JSON(http.StatusCreated, models.LoginResponse{Token: token, User: *user})
 }
 
-// Login godoc
-// @Summary Login user
-// @Tags auth
-// @Accept json
-// @Produce json
-// @Param body body models.LoginRequest true "Login credentials"
-// @Success 200 {object} models.LoginResponse
-// @Router /auth/login [post]
 func (h *AuthHandler) Login(c *gin.Context) {
 	var req models.LoginRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -114,19 +92,9 @@ func (h *AuthHandler) Login(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, models.LoginResponse{
-		Token: token,
-		User:  *user,
-	})
+	c.JSON(http.StatusOK, models.LoginResponse{Token: token, User: *user})
 }
 
-// Me godoc
-// @Summary Get current user
-// @Tags users
-// @Security BearerAuth
-// @Produce json
-// @Success 200 {object} models.User
-// @Router /users/me [get]
 func (h *AuthHandler) Me(c *gin.Context) {
 	claims := middleware.ExtractClaims(c)
 	if claims == nil {

@@ -21,7 +21,29 @@ services:
       timeout: 5s
       retries: 5
 
-  # ── API ───────────────────────────────────────────────────────────────────
+  # ── Auth Service (/auth/register, /auth/login) ────────────────────────────
+  auth-service:
+    build:
+      context: .
+      dockerfile: Dockerfile.auth
+    container_name: restaurant_auth
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      AUTH_PORT: 8081
+      DB_HOST: db
+      DB_PORT: 5432
+      DB_USER: ${DB_USER:-postgres}
+      DB_PASSWORD: ${DB_PASSWORD:-postgres}
+      DB_NAME: ${DB_NAME:-restaurant_db}
+      JWT_SECRET: ${JWT_SECRET:-change-me-in-production-please}
+      GIN_MODE: ${GIN_MODE:-release}
+    ports:
+      - "8081:8081"
+
+  # ── API Service (all other endpoints, validates JWT) ─────────────────────
   api:
     build:
       context: .
@@ -31,6 +53,8 @@ services:
     depends_on:
       db:
         condition: service_healthy
+      auth-service:
+        condition: service_started
     environment:
       PORT: 8080
       DB_HOST: db
