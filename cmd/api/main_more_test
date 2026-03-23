@@ -1,0 +1,58 @@
+package main
+
+import (
+	"database/sql"
+	"testing"
+
+	"github.com/gin-gonic/gin"
+	"github.com/stretchr/testify/assert"
+
+	"restaurant-api/internal/auth"
+	"restaurant-api/internal/handlers"
+)
+
+func TestRun_CustomPort(t *testing.T) {
+	origLoadEnv := loadEnv
+	origNewDB := newDB
+	origRunMigrations := runMigrations
+	origNewJWT := newJWTService
+	origSetupRouter := setupRouter
+	origRunServer := runServer
+
+	t.Setenv("PORT", "9091")
+
+	loadEnv = func(filenames ...string) error { return nil }
+	newDB = func() (*sql.DB, error) {
+		return makeClosableDB(t), nil
+	}
+	runMigrations = func(db *sql.DB) error { return nil }
+	newJWTService = func() *auth.JWTService {
+		return auth.NewJWTService()
+	}
+	setupRouter = func(
+		userRepo handlers.UserRepository,
+		restaurantRepo handlers.RestaurantRepository,
+		menuRepo handlers.MenuRepository,
+		reservationRepo handlers.ReservationRepository,
+		orderRepo handlers.OrderRepository,
+		jwtSvc *auth.JWTService,
+	) *gin.Engine {
+		return gin.New()
+	}
+	runServer = func(run func(...string) error, addr string) error {
+		assert.Equal(t, ":9091", addr)
+		return nil
+	}
+
+	defer func() {
+		loadEnv = origLoadEnv
+		newDB = origNewDB
+		runMigrations = origRunMigrations
+		newJWTService = origNewJWT
+		setupRouter = origSetupRouter
+		runServer = origRunServer
+	}()
+
+	err := run()
+	assert.NoError(t, err)
+}

@@ -20,6 +20,7 @@ func envOrDefault(key, def string) string {
 
 func setMainDBEnvFromTestDB(t *testing.T) {
 	t.Helper()
+
 	t.Setenv("DB_HOST", envOrDefault("TEST_DB_HOST", "localhost"))
 	t.Setenv("DB_PORT", envOrDefault("TEST_DB_PORT", "5432"))
 	t.Setenv("DB_USER", envOrDefault("TEST_DB_USER", "postgres"))
@@ -81,8 +82,13 @@ func TestRunMigrations_Success(t *testing.T) {
 	require.NoError(t, err)
 
 	tables := []string{
-		"users", "restaurants", "menus", "menu_items",
-		"reservations", "orders", "order_items",
+		"users",
+		"restaurants",
+		"menus",
+		"menu_items",
+		"reservations",
+		"orders",
+		"order_items",
 	}
 
 	for _, tbl := range tables {

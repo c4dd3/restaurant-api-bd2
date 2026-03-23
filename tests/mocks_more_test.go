@@ -112,33 +112,48 @@ func (m *MockOrderRepo) FindByID(id string) (*models.Order, error) {
 
 func TestReservationCreate_InvalidJSON(t *testing.T) {
 	gin.SetMode(gin.TestMode)
+
 	resRepo := new(MockReservationRepo)
 	restRepo := new(MockRestaurantRepo)
 	h := handlers.NewReservationHandler(resRepo, restRepo)
+
 	r := gin.New()
 	r.POST("/reservations", h.Create)
+
 	req, _ := http.NewRequest(http.MethodPost, "/reservations", bytes.NewBufferString(`{"restaurant_id":`))
 	req.Header.Set("Content-Type", "application/json")
 	w := httptest.NewRecorder()
+
 	r.ServeHTTP(w, req)
+
 	assert.Equal(t, http.StatusBadRequest, w.Code)
 }
 
 func TestReservationCreate_Unauthorized_NoClaims(t *testing.T) {
 	gin.SetMode(gin.TestMode)
+
 	resRepo := new(MockReservationRepo)
 	restRepo := new(MockRestaurantRepo)
 	h := handlers.NewReservationHandler(resRepo, restRepo)
+
 	rest := &models.Restaurant{ID: "rest-1", Name: "Rest 1"}
 	restRepo.On("FindByID", "rest-1").Return(rest, nil)
 	resRepo.On("CheckAvailability", "rest-1", 4).Return(10, nil)
+
 	r := gin.New()
 	r.POST("/reservations", h.Create)
+
 	req, _ := http.NewRequest(http.MethodPost, "/reservations",
-		bytes.NewBufferString(`{"restaurant_id":"rest-1","date":"2026-03-20T18:00:00Z","party_size":4}`))
+		bytes.NewBufferString(`{
+			"restaurant_id":"rest-1",
+			"date":"2026-03-20T18:00:00Z",
+			"party_size":4
+		}`))
 	req.Header.Set("Content-Type", "application/json")
 	w := httptest.NewRecorder()
+
 	r.ServeHTTP(w, req)
+
 	assert.Equal(t, http.StatusUnauthorized, w.Code)
 	restRepo.AssertExpectations(t)
 	resRepo.AssertExpectations(t)
@@ -146,23 +161,33 @@ func TestReservationCreate_Unauthorized_NoClaims(t *testing.T) {
 
 func TestReservationCreate_CreateError(t *testing.T) {
 	gin.SetMode(gin.TestMode)
+
 	resRepo := new(MockReservationRepo)
 	restRepo := new(MockRestaurantRepo)
 	h := handlers.NewReservationHandler(resRepo, restRepo)
+
 	rest := &models.Restaurant{ID: "rest-1", Name: "Rest 1"}
 	restRepo.On("FindByID", "rest-1").Return(rest, nil)
 	resRepo.On("CheckAvailability", "rest-1", 4).Return(10, nil)
 	resRepo.On("Create", mock.AnythingOfType("*models.Reservation")).Return(assert.AnError)
+
 	r := gin.New()
 	r.POST("/reservations", func(c *gin.Context) {
 		c.Set("claims", &models.Claims{UserID: "user-1", Role: models.RoleClient})
 		h.Create(c)
 	})
+
 	req, _ := http.NewRequest(http.MethodPost, "/reservations",
-		bytes.NewBufferString(`{"restaurant_id":"rest-1","date":"2026-03-20T18:00:00Z","party_size":4}`))
+		bytes.NewBufferString(`{
+			"restaurant_id":"rest-1",
+			"date":"2026-03-20T18:00:00Z",
+			"party_size":4
+		}`))
 	req.Header.Set("Content-Type", "application/json")
 	w := httptest.NewRecorder()
+
 	r.ServeHTTP(w, req)
+
 	assert.Equal(t, http.StatusInternalServerError, w.Code)
 	resRepo.AssertExpectations(t)
 	restRepo.AssertExpectations(t)
@@ -170,67 +195,105 @@ func TestReservationCreate_CreateError(t *testing.T) {
 
 func TestReservationCancel_Unauthorized_NoClaims(t *testing.T) {
 	gin.SetMode(gin.TestMode)
+
 	resRepo := new(MockReservationRepo)
 	restRepo := new(MockRestaurantRepo)
 	h := handlers.NewReservationHandler(resRepo, restRepo)
-	reservation := &models.Reservation{ID: "res-1", RestaurantID: "rest-1", UserID: "user-1", Status: models.StatusPending}
+
+	reservation := &models.Reservation{
+		ID:           "res-1",
+		RestaurantID: "rest-1",
+		UserID:       "user-1",
+		Status:       models.StatusPending,
+	}
 	resRepo.On("FindByID", "res-1").Return(reservation, nil)
+
 	r := gin.New()
 	r.DELETE("/reservations/:id", h.Cancel)
+
 	req, _ := http.NewRequest(http.MethodDelete, "/reservations/res-1", nil)
 	w := httptest.NewRecorder()
+
 	r.ServeHTTP(w, req)
+
 	assert.Equal(t, http.StatusUnauthorized, w.Code)
 	resRepo.AssertExpectations(t)
 }
 
 func TestOrderCreate_InvalidJSON(t *testing.T) {
 	gin.SetMode(gin.TestMode)
+
 	orderRepo := new(MockOrderRepo)
 	menuRepo := new(MockMenuRepo)
 	restRepo := new(MockRestaurantRepo)
 	h := handlers.NewOrderHandler(orderRepo, menuRepo, restRepo)
+
 	r := gin.New()
 	r.POST("/orders", h.Create)
+
 	req, _ := http.NewRequest(http.MethodPost, "/orders", bytes.NewBufferString(`{"restaurant_id":`))
 	req.Header.Set("Content-Type", "application/json")
 	w := httptest.NewRecorder()
+
 	r.ServeHTTP(w, req)
+
 	assert.Equal(t, http.StatusBadRequest, w.Code)
 }
 
 func TestOrderCreate_Unauthorized_NoClaims(t *testing.T) {
 	gin.SetMode(gin.TestMode)
+
 	orderRepo := new(MockOrderRepo)
 	menuRepo := new(MockMenuRepo)
 	restRepo := new(MockRestaurantRepo)
 	h := handlers.NewOrderHandler(orderRepo, menuRepo, restRepo)
+
 	rest := &models.Restaurant{ID: "rest-1", Name: "Rest 1"}
 	restRepo.On("FindByID", "rest-1").Return(rest, nil)
+
 	r := gin.New()
 	r.POST("/orders", h.Create)
+
 	req, _ := http.NewRequest(http.MethodPost, "/orders",
-		bytes.NewBufferString(`{"restaurant_id":"rest-1","items":[{"menu_item_id":"item-1","quantity":2}],"pickup":true}`))
+		bytes.NewBufferString(`{
+			"restaurant_id":"rest-1",
+			"items":[{"menu_item_id":"item-1","quantity":2}],
+			"pickup":true
+		}`))
 	req.Header.Set("Content-Type", "application/json")
 	w := httptest.NewRecorder()
+
 	r.ServeHTTP(w, req)
+
 	assert.Equal(t, http.StatusUnauthorized, w.Code)
 	restRepo.AssertExpectations(t)
 }
 
 func TestOrderGet_Unauthorized_NoClaims(t *testing.T) {
 	gin.SetMode(gin.TestMode)
+
 	orderRepo := new(MockOrderRepo)
 	menuRepo := new(MockMenuRepo)
 	restRepo := new(MockRestaurantRepo)
 	h := handlers.NewOrderHandler(orderRepo, menuRepo, restRepo)
-	order := &models.Order{ID: "order-1", UserID: "user-1", RestaurantID: "rest-1", Status: models.StatusPending, Total: 35}
+
+	order := &models.Order{
+		ID:           "order-1",
+		UserID:       "user-1",
+		RestaurantID: "rest-1",
+		Status:       models.StatusPending,
+		Total:        35,
+	}
 	orderRepo.On("FindByID", "order-1").Return(order, nil)
+
 	r := gin.New()
 	r.GET("/orders/:id", h.Get)
+
 	req, _ := http.NewRequest(http.MethodGet, "/orders/order-1", nil)
 	w := httptest.NewRecorder()
+
 	r.ServeHTTP(w, req)
+
 	assert.Equal(t, http.StatusUnauthorized, w.Code)
 	orderRepo.AssertExpectations(t)
 }
