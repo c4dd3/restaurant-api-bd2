@@ -1,5 +1,8 @@
 package main
 
+// This file contains the main function, which is the entry point of the application. It initializes all dependencies and starts the HTTP server.
+// This is the main api compared to the auth service, which has its own main.go in cmd/auth/main.go. The two services are separate and communicate over HTTP, so they have distinct entry points and dependency setups.
+
 import (
 	"log"
 	"os"
@@ -59,7 +62,7 @@ func run() error {
 		port = "8080"
 	}
 
-	log.Printf("🚀 Server running on port %s", port)
+	log.Printf("Server running on port %s", port)
 	return runServer(r.Run, ":"+port)
 }
 

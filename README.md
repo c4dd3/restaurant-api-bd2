@@ -1,4 +1,4 @@
-# Reserva Inteligente de Restaurantes — API REST
+# Reserva Inteligente de Restaurantes - API REST
 
 API REST desarrollada en **Go (Gin)** con autenticación **JWT** en un **servicio separado**, base de datos **PostgreSQL**, y contenedorización con **Docker**.
 
@@ -19,12 +19,12 @@ API REST desarrollada en **Go (Gin)** con autenticación **JWT** en un **servici
 │  │   register   │   │ POST /menus  │   │         │  │
 │  │   login      │   │ POST /reserv │   │         │  │
 │  └──────┬───────┘   └──────┬───────┘   └────┬────┘  │
-│         └──────────────────┴────────────────┘       │
+│         └──────────────────┴────────────────┘      │
 │                   comparten JWT_SECRET              │
 └─────────────────────────────────────────────────────┘
 ```
 
-El `auth-service` emite tokens JWT. La `api` los valida usando el mismo `JWT_SECRET` — sin llamadas HTTP entre servicios.
+El `auth-service` emite tokens JWT. La `api` los valida usando el mismo `JWT_SECRET` - sin llamadas HTTP entre servicios.
 
 ---
 
@@ -82,14 +82,14 @@ docker compose up --build
 
 ## Endpoints
 
-### Auth Service (`localhost:8081`) — público
+### Auth Service (`localhost:8081`) - público
 
 | Método | Endpoint | Descripción |
 |---|---|---|
 | `POST` | `/auth/register` | Registro de usuario |
 | `POST` | `/auth/login` | Login y obtención de JWT |
 
-### API Service (`localhost:8080`) — requiere JWT
+### API Service (`localhost:8080`) - requiere JWT
 
 | Método | Endpoint | Descripción | Rol |
 |---|---|---|---|
@@ -129,24 +129,38 @@ curl http://localhost:8080/restaurants \
 
 ---
 
-## Correr pruebas
+## Correr Pruebas
 
+### Requisito previo - base de datos de test
 ```bash
-# Unitarias (sin BD)
-go test ./tests/... -run "TestJWT|TestOrder|TestMenu|TestUser|TestReservation|TestMiddleware|TestRouter" -v
+docker compose up db -d
+docker exec -it restaurant_db psql -U postgres -c "CREATE DATABASE restaurant_test;"
+```
 
-# Auth service
-go test ./cmd/auth/... -v
+### Tests unitarios (sin BD)
+```bash
+go test ./cmd/api/... ./cmd/auth/... -v
+```
 
-# API service
-go test ./cmd/api/... -v
+### Tests de handlers y middleware (sin BD)
+```bash
+go test ./tests/... -run "TestJWT|TestAuth_|TestAdminOnly|TestExtractClaims|TestRouter|TestMiddleware|TestRegister|TestLogin|TestMe|TestUser|TestMenu|TestRestaurant|TestReservation|TestOrder" -v
+```
 
-# Integración (requiere BD)
-TEST_DB_HOST=localhost TEST_DB_NAME=restaurant_test go test ./tests/... -v -count=1
+### Tests de integración (requiere BD)
+```bash
+go test ./tests/... -run "TestIntegration" -v -count=1
+```
 
-# Coverage total
-go test ./... -coverprofile=coverage.out
-go tool cover -html=coverage.out
+### Tests de repositorios (requiere BD)
+```bash
+go test ./internal/repository/... -v -count=1
+```
+
+### Todos los tests con coverage
+```bash
+go test ./... -coverprofile=coverage.out -coverpkg=./... -count=1
+go tool cover -func coverage.out
 ```
 
 ---

@@ -1,0 +1,1716 @@
+
+<!DOCTYPE html>
+<html>
+	<head>
+		<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+		<title>api: Go Coverage Report</title>
+		<style>
+			body {
+				background: black;
+				color: rgb(80, 80, 80);
+			}
+			body, pre, #legend span {
+				font-family: Menlo, monospace;
+				font-weight: bold;
+			}
+			#topbar {
+				background: black;
+				position: fixed;
+				top: 0; left: 0; right: 0;
+				height: 42px;
+				border-bottom: 1px solid rgb(80, 80, 80);
+			}
+			#content {
+				margin-top: 50px;
+			}
+			#nav, #legend {
+				float: left;
+				margin-left: 10px;
+			}
+			#legend {
+				margin-top: 12px;
+			}
+			#nav {
+				margin-top: 10px;
+			}
+			#legend span {
+				margin: 0 5px;
+			}
+			.cov0 { color: rgb(192, 0, 0) }
+.cov1 { color: rgb(128, 128, 128) }
+.cov2 { color: rgb(116, 140, 131) }
+.cov3 { color: rgb(104, 152, 134) }
+.cov4 { color: rgb(92, 164, 137) }
+.cov5 { color: rgb(80, 176, 140) }
+.cov6 { color: rgb(68, 188, 143) }
+.cov7 { color: rgb(56, 200, 146) }
+.cov8 { color: rgb(44, 212, 149) }
+.cov9 { color: rgb(32, 224, 152) }
+.cov10 { color: rgb(20, 236, 155) }
+
+		</style>
+	</head>
+	<body>
+		<div id="topbar">
+			<div id="nav">
+				<select id="files">
+				
+				<option value="file0">restaurant-api/cmd/api/main.go (95.7%)</option>
+				
+				<option value="file1">restaurant-api/internal/auth/jwt.go (88.2%)</option>
+				
+				<option value="file2">restaurant-api/internal/handlers/auth_handler.go (84.9%)</option>
+				
+				<option value="file3">restaurant-api/internal/handlers/menu_handler.go (86.0%)</option>
+				
+				<option value="file4">restaurant-api/internal/handlers/reservation_order_handler.go (100.0%)</option>
+				
+				<option value="file5">restaurant-api/internal/handlers/restaurant_handler.go (90.5%)</option>
+				
+				<option value="file6">restaurant-api/internal/handlers/user_handler.go (81.8%)</option>
+				
+				<option value="file7">restaurant-api/internal/middleware/middleware.go (100.0%)</option>
+				
+				<option value="file8">restaurant-api/internal/repository/db.go (91.7%)</option>
+				
+				<option value="file9">restaurant-api/internal/repository/menu_repository.go (84.1%)</option>
+				
+				<option value="file10">restaurant-api/internal/repository/reservation_order_repository.go (84.8%)</option>
+				
+				<option value="file11">restaurant-api/internal/repository/restaurant_repository.go (89.5%)</option>
+				
+				<option value="file12">restaurant-api/internal/repository/user_repository.go (100.0%)</option>
+				
+				<option value="file13">restaurant-api/internal/router/router.go (100.0%)</option>
+				
+				</select>
+			</div>
+			<div id="legend">
+				<span>not tracked</span>
+			
+				<span class="cov0">not covered</span>
+				<span class="cov8">covered</span>
+			
+			</div>
+		</div>
+		<div id="content">
+		
+		<pre class="file" id="file0" style="display: none">package main
+
+// This file contains the main function, which is the entry point of the application. It initializes all dependencies and starts the HTTP server.
+// This is the main api compared to the auth service, which has its own main.go in cmd/auth/main.go. The two services are separate and communicate over HTTP, so they have distinct entry points and dependency setups.
+
+import (
+        "log"
+        "os"
+
+        "github.com/joho/godotenv"
+
+        "restaurant-api/internal/auth"
+        "restaurant-api/internal/repository"
+        "restaurant-api/internal/router"
+)
+
+// Dependency injection vars — replaceable in tests to mock infrastructure behavior.
+var (
+        loadEnv       = godotenv.Load
+        newDB         = repository.NewDB
+</span>        runMigrations = repository.RunMigrations
+        newJWTService = auth.NewJWTService
+        setupRouter   = router.Setup
+        runServer     = func(run func(...string) error, addr string) error { return run(addr) }
+        runApp        = <span class="cov8" title="1">run
+        exitFunc      = os.Exit
+)
+
+// run initiali</span><span class="cov8" title="1">zes all application dependencies and starts the HTTP server.
+func run() error {
+        /</span>/ Load environment variables from .env file; ignore error if file is absent.
+        <span class="cov8" title="1">_ = loadEnv()
+
+        // Open the database connection.
+</span>        db, err := newDB()
+        i</span>f err != nil {
+                return err
+        <span class="cov8" title="1">}
+        defer db.Close()
+
+        // Apply pending schema migrations before accepting traffic.
+        if err := runMigrations(db); err != nil {
+                return err
+        }
+
+        // Build repository instances, each wrapping the shared DB connection.
+        userRepo := repository.NewUserRepository(db)
+        restaurantRepo := repository.NewRestaurantRepository(db)
+        menuRepo := re</span><span class="cov8" title="1">pository.NewMenuRepository(db)
+        reservationRepo := repository.NewReservationRepository(db)
+        o</span>rderRepo := repository.NewOrderRepository(db)
+
+        <span class="cov8" title="1">// Create the JWT service used for token signing and verification.
+        jwtSvc := newJWTService()
+</span>
+        // Wire all repositories and services into the HTTP router.
+        r := setupR<span class="cov8" title="1">outer(userRepo, restaurantRepo, menuRepo, reservationRepo, orderRepo, jwtSvc)
+
+</span>        // Resolve the listen port from the environment, defaulting to 8080.
+        port := os.Getenv("PORT")
+        i</span>f port == "" {
+                port = "8080"
+        }
+
+        log.Printf("Server running on port %s", port)
+        return runServer(r.Run, ":"+port)
+}
+
+// main is the entry point; it delegates to run and exits with code 1 on failure.
+func main() {
+        if err := runApp(); err != nil {
+                log.Printf("startup/server error: %v", err)
+                exitFunc(1)
+        }
+}
+</pre>
+		
+		<pre class="file" id="file1" style="display: none">package auth
+
+import (
+        "errors"
+        "os"
+        "time"
+
+        "github.com/golang-jwt/jwt/v5"
+        "restaurant-api/internal/models"
+)
+
+// ErrInvalidToken is returned whenever a token cannot be parsed or its signature is invalid.
+var ErrInvalidToken = errors.New("invalid token")
+
+// JWTService holds the signing secret and token lifetime used across all JWT operations.
+type JWTService struct {
+        secret     []byte
+        expiration time.Duration
+}
+
+// NewJWTService </span><span class="cov8" title="1">creates a JWTService using the JWT_SECRET env var (falls back to a default
+// insecure key if the variable is unset — must be overridden in production).
+fu</span>nc NewJWTService() *JWTService {
+        <span class="cov8" title="1">secret := os.Getenv("JWT_SECRET")
+        if secret == "" {
+                secret = "super-secret-key-change-in-production"
+        }</span>
+        return &amp;JWTService{
+                secret:     []byte(secret),
+                expiration: 24 * time.Hour,
+        }
+}
+
+// jwtClaims extends the standard registered claims with application-specific user fields.
+type jwtClaims struct {
+        UserID string `json:"user_id"`
+        Email  string `json:"email"`
+        Role   string `json:"role"`
+        jwt.RegisteredClaims
+}
+
+// GenerateToken creates a signed HS256 JWT for the given user, valid for the configured duration.
+func (s *JWTService) GenerateToken(user *models.User) (string, error) {
+        claims := jwtClaims{
+                UserID: user.ID,
+                Email:  user.Email,
+                Role:   user.Role,
+                RegisteredClaims: jwt.RegisteredClaims{
+                        ExpiresAt: jwt.NewNumericDate(time.Now().Add(s.expiration)),
+        </span>                IssuedAt:  jwt.NewNumericDate(time.Now()),
+                        Subject:   user.ID,
+                },
+        }
+</span>        token := jwt.NewWithClaims(jwt.SigningMethodHS256, c</span><span class="cov0" title="0">laims)
+        return token.SignedString(s.secret)
+}
+</span>
+</span>// ValidateToken parses and verifies a JWT string, returning the embedded claims on success.
+f<span class="cov8" title="1">unc (s *JWTService) ValidateTo</span><span class="cov8" title="1">ken(tokenStr string) (*models.Claims, error) {
+        token, err := jwt.ParseWithClaims(tokenStr, &amp;jwtClaims{}, func(t *jwt.Token) (interface{}, error) {
+                </span>// Reject tokens signed with any algorithm other than HMAC (e.g. "alg:none" attacks).
+                if _, ok := t.Method.(*jwt.SigningMethodHMAC); !ok {
+        <span class="cov8" title="1">                return nil, ErrInvalidToken
+                }
+</span>                return s.secret, nil
+        }</span>)
+        if err != nil || !token.Valid {
+        <span class="cov8" title="1">        return nil, ErrInvalidToken
+        }
+
+        // Type-assert to our custom claims struct to access the application fields.
+        claims</span>, ok := token.Claims.(*jwtClaims)
+        if !ok {
+                return nil, ErrInvalidToken
+        }
+
+        return &amp;models.Claims{
+                UserID: claims.UserID,
+                Email:  claims.Email,
+                Role:   claims.Role,
+        }, nil
+}
+</pre>
+		
+		<pre class="file" id="file2" style="display: none">package handlers
+
+import (
+        "net/http"
+
+        "github.com/gin-gonic/gin"
+        "golang.org/x/crypto/bcrypt"
+
+        "restaurant-api/internal/auth"
+        "restaurant-api/internal/middleware"
+        "restaurant-api/internal/models"
+)
+
+// AuthHandler handles HTTP requests related to authentication (register, login, profile).
+type AuthHandler struct {
+        userRepo UserRepository
+        jwtSvc   *auth.JWTService
+}
+
+// NewAuthHandler creates an AuthHandler with the given user repository and JWT service.
+func NewAuthHandler(userRepo UserRepository, jwtSvc *auth.JWTService) *AuthHandler {
+        return &amp;AuthHandler{userRepo: userRepo, jwtSvc: jwtSvc}
+}
+</span>
+// Register creates a new user account.
+// Steps: validate the request body → check the email is not taken → hash the password
+// → save the user in the DB → return a JWT token so the user is logged in right away.
+func (h *AuthHandler) Register(c *gin.Context) {
+        // Parse and validate the JSON request body.
+        var req models.RegisterRequest
+        if err := c.ShouldBindJSON(&amp;req); err != nil {
+                c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+                return
+        }
+
+        // Reject registration if the email is alread</span><span class="cov8" title="1">y used by another account.
+        existing, err := h.userRepo.FindByEmail(req.Email)
+        if err != nil {
+                </span>c.JSON(http.StatusInternalServerError, gin.H{"error": "database error"})
+                return
+        <span class="cov8" title="1">}
+        if existing !=</span><span class="cov8" title="1"> nil {
+                c.JSON(http.StatusConflict, gin.H{"error": "email already in use"})
+                return
+        }</span>
+<span class="cov8" title="1">
+</span>        // Hash the plain-text password before storing it — never save passwords as plain text.
+        hashed, err := bcrypt.GenerateFromPassword([]byte(req.Password), bcrypt.DefaultCost)
+        i</span>f err != nil {
+                c.JSON(http.StatusInternalServerError, gin.H{"error": "error hashing password"})
+        <span class="cov8" title="1">        return
+        }
+</span>
+        // Build the user model with the hashed password.
+        u</span>ser := &amp;models.User{
+                Name:     req.Name,
+        <span class="cov8" title="1">        Email:    req.Email,
+                Password: string(hashed),
+                Role:     req.Role,
+        }
+
+        // Persist the new user to the database.
+        if err := h.userRepo.Create(user); err != nil {
+                c.JSON(http.StatusInternalServerError, gin.H{</span><span class="cov8" title="1">"error": "error creating user"})
+                return
+        }
+
+</span>        // Generate a JWT token so the user is authenticated immediately after registering.
+        <span class="cov8" title="1">token, err := h.jwtSvc.GenerateToken(user)
+        if err != nil </span><span class="cov0" title="0">{
+                c.JSON(http.StatusInternalServerError, gin.H{"error": "error generating token"})
+                return
+        }</span>
+
+        <span class="cov8" title="1">c.JSON(http.StatusCreated, models.LoginResponse{Token: token, User: *user})
+}
+
+// </span>Login authenticates an existing user.
+// Steps: validate the request body → look up the user by email → verify the password
+// → return a JWT token on success.
+func (h *AuthHandler) Login(c *gin.Context) {
+        // Parse and validate the JSON request body.
+        var req models.LoginRequest
+        if err := c.ShouldBindJSON(&amp;req); err != nil {
+                c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+                return
+        }
+
+        // Look up the user by email. Return a gene<span class="cov8" title="1">ric error to avoid leaking whether
+        // the email exists in the system.
+        user, err := h.userRepo.FindByEmail(req.Email</span><span class="cov8" title="1">)
+        if err != nil {
+                c.JSON(http.StatusInternalServerError, gin.H{"error": "database error"})
+                </span>return
+        }
+        <span class="cov8" title="1">if user == nil {
+                c.JSON(http.S</span><span class="cov8" title="1">tatusUnauthorized, gin.H{"error": "invalid credentials"})
+                return
+        }
+
+</span>        <span class="cov8" title="1">// Compare the </span><span class="cov8" title="1">provided password against the stored hash.
+        if err := bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(req.Password)); err != nil {
+                c.JSON(http.StatusUnauthorized, gin.H{"error": "invalid credentials"})
+                </span>return
+        }
+<span class="cov8" title="1">
+</span>        // Credentials are valid — issue a JWT token for the session.
+        token, err := h.jwtSvc.GenerateToken(user)
+        i</span>f err != nil {
+                c.JSON(http.StatusInternalServerError, gin.H{"error": "error generating token"})
+        <span class="cov8" title="1">        return
+        }
+</span>
+        c.JSON(http.StatusOK, models.LoginResponse{Token: token, User: *user})
+}</span>
+
+/<span class="cov8" title="1">/ Me returns the profile of the currently logged-in user.
+// It reads the user ID from the JWT claims that the auth middleware already validated.
+func (h *AuthHandler) Me(c *gin.Context) {
+        //</span> Extract the claims injected into the context by the JWT middleware.
+        claims := middleware.ExtractClaims(c)
+        if claims == nil {
+                c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+                return
+        }
+
+        // Fetch the full user record from the database using the ID in the token.
+        user, err := h.userRepo.FindByID(claims.UserID)
+        if err != nil || user == nil {
+                c.JSON(http.StatusNotFound, gin.H{"erro<span class="cov8" title="1">r": "user not found"})
+                return
+        }
+</span>
+        c.JSON(http.StatusOK, user)
+}</span>
+</pre>
+		
+		<pre class="file" id="file3" style="display: none">package handlers
+
+import (
+        "net/http"
+
+        "github.com/gin-gonic/gin"
+
+        "restaurant-api/internal/models"
+)
+
+// MenuHandler handles HTTP requests related to menus and their items.
+// It needs both the menu repo (to read/write menus) and the restaurant repo
+// (to verify the restaurant exists before creating a menu for it).
+type MenuHandler struct {
+        menuRepo       MenuRepository
+        restaurantRepo RestaurantRepository
+}
+
+// NewMenuHandler creates a MenuHandler with the given repositories.
+func NewMenuHandler(menuRepo MenuRepository, restaurantRepo RestaurantRepository) *MenuHandler {
+        </span>return &amp;MenuHandler{menuRepo: menuRepo, restaurantRepo: restaurantRepo}
+}
+
+// Create adds a new menu (with its items) to a restaurant.
+// Steps: validate the request body → confirm the restaurant exists → build the menu
+// model with its items → save it to the database.
+func (h *MenuHandler) Create(c *gin.Context) {
+        // Parse and validate the JSON request body.
+        var req models.CreateMenuRequest
+        if err := c.ShouldBindJSON(&amp;req); err != nil {
+                c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+                return
+        }
+
+</span>        // Make sure the target restaurant exists before attaching a menu to it.
+        rest, err := h.restaurantRepo.FindByID(req.RestaurantID)
+        i</span>f err != nil {
+                c.JSON(http.StatusInternalServerError, gin.H{"error": "database error"})
+        <span class="cov8" title="1">        return
+        }
+</span>        if rest == nil {
+                c.JSON(http.StatusNotFound, gin.H{"error": "restaurant not found"})
+                </span>return
+        <span class="cov8" title="1">}
+</span>
+        // Build the menu model and convert each requested item into a MenuItem.
+        m</span>enu := &amp;models.Menu{
+                RestaurantID: req.RestaurantID,
+        <span class="cov8" title="1">        Name:         req.Name,
+                Description:  req.Description,
+        }
+        for _, item := range req.Items {
+                menu.Items = append(menu.Items, models.MenuItem{
+                        Name:        item.Name,
+                        Description: item.Description</span><span class="cov8" title="1">,
+                        Price:       item.Price,
+                        Available:   item.Available,
+                })
+        }
+
+        // Persist the menu (and its items) to the database.
+        i</span>f err := h.menuRepo.Create(menu); err != nil {
+                c.JSON(http.StatusInternalServerError, gin.H{"error": "error creating menu"})
+        <span class="cov8" title="1">        return
+</span>        }
+
+        c</span>.JSON(http.StatusCreated, menu)
+}
+<span class="cov8" title="1">
+</span>// Get returns a single menu by the ID provided in the URL parameter.
+func (h *MenuHandler) Get(c *gin.Context) {
+        menu, err := h.menuRepo.FindByID(c.Param("id"))
+        if err != nil {
+                c.JSON(http.StatusInternalServerError, gin.H{"error": "database error"})
+                return
+        }
+        if menu == nil {
+                c.JSON(http.StatusNotFound, gin.H{"error": "menu not found"})
+                return
+        }
+        c.JSON(http.StatusOK, menu)
+}
+</span>
+// Update modifies the fields of an existing menu identified by the URL parameter ID.
+fu</span>nc (h *MenuHandler) Update(c *gin.Context) {
+        <span class="cov8" title="1">// Parse and va</span><span class="cov8" title="1">lidate the JSON request body.
+        var req models.UpdateMenuRequest
+        if err := c.ShouldBindJSON(&amp;req); err != nil {
+                </span>c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+                return
+        <span class="cov8" title="1">}
+</span>
+        // Apply the update; the repository returns nil if no menu with that ID exists.
+        menu, err := h.menuRepo.Update(c.Param("id"), &amp;req)
+        if err != nil {
+                c.JSON(http.StatusInternalServerError, gin.H{"error": "error updating menu"})
+                return
+        }
+        if menu == nil {
+                c.JSON(http.StatusNotFound, gin.H{"error": "menu not found"})
+                return
+        }
+        c.JSON(http.StatusOK, menu)
+}
+
+// Delete removes a menu by the ID provided in</span><span class="cov0" title="0"> the URL parameter.
+// Returns 204 No Content on success (no body needed).
+func (h *MenuHandler) Delete(c *gin.Context) {
+        i</span>f err := h.menuRepo.Delete(c.Param("id")); err != nil {
+                c.JSON(http.StatusInternalServerError, gin.H{"error": "error deleting menu"})
+        <span class="cov8" title="1">        return
+        }
+</span>        c.Status(http.StatusNoContent)
+}
+</pre>
+		
+		<pre class="file" id="file4" style="display: none">package handlers
+
+import (
+        "net/http"
+
+        "github.com/gin-gonic/gin"
+
+        "restaurant-api/internal/middleware"
+        "restaurant-api/internal/models"
+)
+
+// ReservationHandler handles HTTP requests for creating and cancelling reservations.
+// It needs the restaurant repo to verify the restaurant exists before booking a table.
+type ReservationHandler struct {
+        repo           ReservationRepository
+        restaurantRepo RestaurantRepository
+}
+
+// NewReservationHandler creates a ReservationHandler with the given repositories.
+func NewReservationHandler(repo ReservationRepository, restaurantRepo RestaurantRepository) *ReservationHandler {
+        return &amp;ReservationHandler{repo: repo, restaurantRepo: restaurantRepo}
+}</span>
+
+// Create books a new reservation at a restaurant for the logged-in user.
+// Steps: validate request body → confirm restaurant exists → check the restaurant
+// has enough seats for the party → read user ID from JWT → save the reservation.
+func (h *ReservationHandler) Create(c *gin.Context) {
+        // Parse and validate the JSON request body.
+        var req models.CreateReservationRequest
+        if err := c.ShouldBindJSON(&amp;req); err != nil {
+                c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+                return
+        }
+
+        // Confirm the restaurant exists before tryin</span><span class="cov8" title="1">g to book a table there.
+        rest, err := h.restaurantRepo.FindByID(req.RestaurantID)
+        if err != nil || rest == nil {
+                </span>c.JSON(http.StatusNotFound, gin.H{"error": "restaurant not found"})
+                return
+        <span class="cov8" title="1">}
+
+</span>        // Check that the restaurant has enough free seats for the requested party size.
+        // A negative result means there is not enough capacity.
+        a</span>vailable, err := h.repo.CheckAvailability(req.RestaurantID, req.PartySize)
+        if err != nil {
+        <span class="cov8" title="1">        c.JSON(http.StatusInternalServerError, gin.H{"error": "error checking availability"})
+                return
+</span>        }
+        if available &lt; 0 {
+                </span>c.JSON(http.StatusConflict, gin.H{"error": "insufficient capacity for requested party size"})
+        <span class="cov8" title="1">        return
+</span>        }
+
+        /</span>/ Get the user ID from the JWT claims injected by the auth middleware.
+        claims := middleware.ExtractClaims(c)
+        <span class="cov8" title="1">if claims == nil {
+                c.JSON(http.Stat</span><span class="cov8" title="1">usUnauthorized, gin.H{"error": "unauthorized"})
+                return
+        }
+
+</span>        // Build and save the reservation, linking it to the logged-in user.
+        <span class="cov8" title="1">reservation := &amp;models.Reservation{
+                RestaurantID: req.RestaurantID,
+                UserID:       claims.UserID,
+                Date:         req.Date,
+                PartySize:    req.PartySize,
+                Status:       models.StatusPending,
+                Notes:        req.Notes,
+        }
+
+        if err := h.repo.Create(reservation); err != nil </span><span class="cov8" title="1">{
+                c.JSON(http.StatusInternalServerError, gin.H{"error": "error creating reservation"})
+                return
+        }</span>
+
+        <span class="cov8" title="1">c.JSON(http.StatusCreated, reservation)</span>
+}
+
+// Cancel marks a reservation as cancelled.
+// Only the user who made the reservation or an admin can cancel it.
+func (h *ReservationHandler) Cancel(c *gin.Context) {
+        id := c.Param("id")
+
+        // Fetch the reservation to verify it exists and to check ownership below.
+        reservation, err := h.repo.FindByID(id)
+        if err != nil || reservation == nil {
+                c.JSON(http.StatusNotFound, gin.H{"error": "reservation not found"})
+                return
+        }
+
+</span>        // Get the caller's identity from the JWT claims.
+        claims := middleware.ExtractClaims(c)
+        i</span>f claims == nil {
+                c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+        <span class="cov8" title="1">        return
+        }
+</span>
+        // Prevent a regular user from cancelling someone else's reservation.
+        /</span>/ Admins can cancel any reservation.
+        if claims.Role != models.RoleAdmin &amp;&amp; reservation.UserID != claims.UserID {
+        <span class="cov8" title="1">        c.JSON(http.StatusForbidden, gin.H{"error": "cannot cancel another user's</span><span class="cov8" title="1"> reservation"})
+                return
+        }
+
+</span>        if err := h.repo.Cancel(id); err != nil {
+        <span class="cov8" title="1">        c.JSON(http.StatusInternalServerError, </span><span class="cov8" title="1">gin.H{"error": "error cancelling reservation"})
+                return
+        }
+
+</span>        c.JSON(http.StatusOK, gin.H{"message": "reservation cancelled"})
+}<span class="cov8" title="1">
+</span>
+// OrderHandler handles HTTP requests for creating and retrieving orders.
+// It needs three repositories: orders (to save/read orders), menus (to validate and
+// price each item), and restaurants (to confirm the target restaurant exists).
+type OrderHandler struct {
+        orderRepo      OrderRepository
+        menuRepo       MenuRepository
+        restaurantRepo RestaurantRepository
+}
+
+// NewOrderHandler creates an OrderHandler with the given repositories.
+func NewOrderHandler(orderRepo OrderRepository, menuRepo MenuRepository, restaurantRepo RestaurantRepository) *OrderHandler {
+        return &amp;OrderHandler{orderRepo: orderRepo, menuRepo: menuRepo, restaurantRepo: restaurantRepo}
+}
+</span>
+// Create places a new order at a restaurant for the logged-in user.
+// Steps: validate request body → confirm restaurant exists → read user ID from JWT
+// → validate each ordered item (exists and is available) → calculate total price → save the order.
+func (h *OrderHandler) Create(c *gin.Context) {
+        // Parse and validate the JSON request body.
+        var req models.CreateOrderRequest
+        if err := c.ShouldBindJSON(&amp;req); err != nil {
+                c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+                return
+        }
+
+        // Confirm the restaurant exists before placing an order there.
+        rest, err := h.restaurantRepo.FindByID(req.Re</span><span class="cov8" title="1">staurantID)
+        if err != nil || rest == nil {
+                c.JSON(http.StatusNotFound, gin.H{"error": "restaurant not found"})
+                </span>return
+        }
+<span class="cov8" title="1">
+        // Get the user ID from the J</span><span class="cov8" title="1">WT claims injected by the auth middleware.
+        claims := middleware.ExtractClaims(c)
+        if claims == nil {
+                </span>c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+                return
+        <span class="cov8" title="1">}
+
+</span>        // Start building the order linked to the logged-in user.
+        order := &amp;models.Order{
+                </span>UserID:        claims.UserID,
+                RestaurantID:  req.RestaurantID,
+        <span class="cov8" title="1">        ReservationID: req.ReservationID,
+                Status:        models.StatusPending,
+                Pickup:        req.Pickup,
+        }
+
+        // Loop over each requested item: verify it exists, check it is available,
+        // accumulate the total price, and add it to the order.
+        var total float64
+        for _, itemReq := range req.Items {
+                menuItem, err := h.menuRepo.FindI</span><span class="cov8" title="1">temByID(itemReq.MenuItemID)
+                if err != nil || menuItem == nil {
+                        c.JSON(http.StatusNotFound, gin.</span><span class="cov8" title="1">H{"error": "menu item not found: " + itemReq.MenuItemID})
+                        return
+                }
+                i</span>f !menuItem.Available {
+                <span class="cov8" title="1">        c.JSON(http.StatusBadR</span><span class="cov8" title="1">equest, gin.H{"error": "menu item not available: " + menuItem.Name})
+                        return
+                }
+                t</span>otal += menuItem.Price * float64(itemReq.Quantity)
+                order.Items = append(order.Items, models.OrderItem{
+                <span class="cov8" title="1">        MenuItemID: itemReq.MenuItemID,
+                        Quantity:   itemReq.Quantity,
+                        Price:      menuItem.Price,
+                })
+        }
+        order.Total = total
+
+        // </span>Persist the completed order to the database.
+        if err := h.orderRepo.Create(order); err != nil {
+                c.JSON(http.StatusInternalServerError, gin.H{"error": "error creating order"})
+        <span class="cov8" title="1">        return
+        }
+
+</span>        c.JSON(http.StatusCreated, order)
+}
+
+</span>// Get returns a single order by the ID provided in the URL parameter.
+/<span class="cov8" title="1">/ Only the user who placed the or</span>der or an admin can view it.
+func (h *OrderHandler) Get(c *gin.Context) {
+        order, err := h.orderRepo.FindByID(c.Param("id"))
+        if err != nil {
+                c.JSON(http.StatusInternalServerError, gin.H{"error": "database error"})
+                return
+        }
+        if order == nil {
+                c.JSON(http.StatusNotFound, gin.H{"error": "order not found"})
+                return
+        }
+
+        // Get the caller's identity from the JWT claims.
+        claims := midd</span><span class="cov8" title="1">leware.ExtractClaims(c)
+        if claims == nil {
+                c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+                </span>return
+        <span class="cov8" title="1">}
+</span>
+        // Prevent a regular user from viewing someone else's order.
+        /</span>/ Admins can access any order.
+        if claims.Role != models.RoleAdmin &amp;&amp; order.UserID != claims.UserID {
+        <span class="cov8" title="1">        c.JSON(http.StatusForbidden, gin.H{"error": "cannot access another user's order"})
+                return
+</span>        }
+
+        c</span>.JSON(http.StatusOK, order)
+}
+</pre>
+		
+		<pre class="file" id="file5" style="display: none">package handlers
+
+import (
+        "net/http"
+
+        "github.com/gin-gonic/gin"
+
+        "restaurant-api/internal/middleware"
+        "restaurant-api/internal/models"
+)
+
+// RestaurantHandler handles HTTP requests for creating and listing restaurants.
+type RestaurantHandler struct {
+        repo RestaurantRepository
+}
+
+// NewRestaurantHandler creates a RestaurantHandler with the given repository.
+f</span>unc NewRestaurantHandler(repo RestaurantRepository) *RestaurantHandler {
+        return &amp;RestaurantHandler{repo: repo}
+}
+
+// Create registers a new restaurant.
+// Steps: validate the request body → read the admin ID from JWT → build the
+// restaurant model → save it to the database.
+func (h *RestaurantHandler) Create(c *gin.Context) {
+        // Parse and validate the JSON request body.
+        var req models.CreateRestaurantRequest
+        if err := c.ShouldBindJSON(&amp;req); err != nil {
+                c.JSON(http.StatusBadRequest, gin.H{"error": err.<span class="cov8" title="1">Error()})
+                return
+        }
+</span>
+        // Get the caller's identity from the JWT claims injected by the auth middleware.
+        c</span>laims := middleware.ExtractClaims(c)
+        if claims == nil {
+        <span class="cov8" title="1">        c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+                return
+</span>        }
+
+        /</span>/ Build the restaurant model, assigning the logged-in user as its admin.
+        rest := &amp;models.Restaurant{
+        <span class="cov8" title="1">        Name:        req.Name,
+                Address:     req.Address,
+                Phone:       req.Phone,
+                Description: req.Description,
+                Capacity:    req.Capacity,
+                AdminID:     claims.UserID,
+        }
+
+        // Persist the new restaurant to the database.
+        if err := h.repo.Create(rest); err != nil </span><span class="cov0" title="0">{
+                c.JSON(http.StatusInternalServerError, gin.H{"error": "error creating restaurant"})
+                return
+        }</span>
+
+        <span class="cov8" title="1">c.JSON(http.StatusCreated, rest)</span>
+}
+
+// List returns all restaurants in the database.
+// If no restaurants exist yet, it returns an empty array instead of null
+// so the client always receives a valid JSON array.
+func (h *RestaurantHandler) List(c *gin.Context) {
+        restaurants, err := h.repo.FindAll()
+        if err != nil {
+                c.JSON(http.StatusInternalServerError, gin.H{"error": "error fetching restaurants"})
+                return
+        }
+
+</span>        // Return an empty slice instead of null to keep the response consistent for clients.
+        if restaurants == nil {
+                </span>restaurants = []models.Restaurant{}
+        }
+<span class="cov8" title="1">
+</span>        c.JSON(http.StatusOK, restaurants)
+}</span>
+</pre>
+		
+		<pre class="file" id="file6" style="display: none">package handlers
+
+import (
+        "net/http"
+
+        "github.com/gin-gonic/gin"
+
+        "restaurant-api/internal/middleware"
+        "restaurant-api/internal/models"
+)
+
+// UserHandler handles HTTP requests for updating and deleting user accounts.
+type UserHandler struct {
+        userRepo UserRepository
+}
+
+// NewUserHandler creates a UserHandler with the given user repository.
+f</span>unc NewUserHandler(userRepo UserRepository) *UserHandler {
+        return &amp;UserHandler{userRepo: userRepo}
+}
+
+// Update modifies the fields of an existing user identified by the URL parameter ID.
+// Only the user themselves or an admin can update the account.
+func (h *UserHandler) Update(c *gin.Context) {
+        id := c.Param("id")
+
+        // Get the caller's identity from the JWT claims injected by the auth middleware.
+        claims := middleware.ExtractClaims(c)
+        if claims == nil {
+                c.JSON(http.StatusUnauthorized, gin.H{"erro<span class="cov8" title="1">r": "unauthorized"})
+                return
+        }
+
+</span>        // Prevent a regular user from updating someone else's account.
+        // Admins can update any account.
+        i</span>f claims.Role != models.RoleAdmin &amp;&amp; claims.UserID != id {
+                c.JSON(http.StatusForbidden, gin.H{"error": "cannot update another user"})
+        <span class="cov8" title="1">        return
+</span>        }
+
+        /</span>/ Parse and validate the JSON request body.
+        var req models.UpdateUserRequest
+        <span class="cov8" title="1">if err := c.ShouldBindJSON(&amp;req); err != nil {
+                c.JSON(http.StatusBadRequest, gin.H{"error":</span><span class="cov0" title="0"> err.Error()})
+                return
+        }
+
+</span>        // Apply the update; the repository returns nil if no user with that ID exists.
+        <span class="cov8" title="1">user, err := h.userRepo.Update(id, &amp;req)
+        if err != nil </span><span class="cov0" title="0">{
+                c.JSON(http.StatusInternalServerError, gin.H{"error": "error updating user"})
+                return
+        }</span>
+        <span class="cov8" title="1">if user == nil </span><span class="cov8" title="1">{
+                c.JSON(http.StatusNotFound, gin.H{"error": "user not found"})
+                return
+        }</span>
+
+        <span class="cov8" title="1">c.JSON(http.StatusOK, user)</span>
+}
+
+// Delete removes a user account identified by the URL parameter ID.
+// Only the user themselves or an admin can delete the account.
+// Returns 204 No Content on success (no body needed).
+func (h *UserHandler) Delete(c *gin.Context) {
+        id := c.Param("id")
+
+        // Get the caller's identity from the JWT claims injected by the auth middleware.
+        claims := middleware.ExtractClaims(c)
+        if claims == nil {
+                c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+                return
+</span>        }
+
+        /</span>/ Prevent a regular user from deleting someone else's account.
+        // Admins can delete any account.
+        <span class="cov8" title="1">if claims.Role != models.RoleAdmin &amp;&amp; claims.UserID != id </span><span class="cov8" title="1">{
+                c.JSON(http.StatusForbidden, gin.H{"error": "cannot delete another user"})
+                return
+        }</span>
+
+        <span class="cov8" title="1">if err := h.userRepo.Delete(id); err != nil </span><span class="cov0" title="0">{
+                c.JSON(http.StatusInternalServerError, gin.H{"error": "error deleting user"})
+                return
+        }</span>
+
+        <span class="cov8" title="1">c.Status(http.StatusNoContent)</span>
+}
+</pre>
+		
+		<pre class="file" id="file7" style="display: none">package middleware
+
+import (
+        "net/http"
+        "strings"
+
+        "github.com/gin-gonic/gin"
+        "restaurant-api/internal/auth"
+        "restaurant-api/internal/models"
+)
+
+// ClaimsKey is the key used to store and retrieve JWT claims in the Gin context.
+// Handlers call ExtractClaims(c) instead of using this key directly.
+const ClaimsKey = "claims"
+
+</span>// Auth is a Gin middleware that protects routes by requiring a valid JWT token.
+// It reads the token from the "Authorization: Bearer &lt;toke</span><span class="cov8" title="1">n&gt;" header, validates it,
+// and stores the decoded claims in the context so handlers can read them.
+// If the header is missing or the token is invalid, the request is rejected with 401.
+fun</span>c Auth(jwtSvc *auth.JWTService) gin.HandlerFunc {
+        return func(c *gin.Context) {
+                <span class="cov8" title="1">// Read the Authorization header and make sure it follows the "Bearer &lt;token&gt;" format.
+                header := c.GetHeader("Authorization")
+                if header == "</span><span class="cov8" title="1">" || !strings.HasPrefix(header, "Bearer ") {
+                        c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "missing or invalid authorization header"})
+                        return
+                }</span>
+
+                <span class="cov8" title="1">// Strip the "Bearer " prefix to get the raw token string, then validate it.
+                tokenStr</span> := strings.TrimPrefix(header, "Bearer ")
+                claims, err := jwtSvc.ValidateToken(tokenStr)
+                if err != nil {
+                        c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "invalid or expired token"})
+                        return
+                }
+</span>
+                // Store the validated claims in the context so down</span><span class="cov8" title="1">stream handlers can access them.
+                c.Set(ClaimsKey, claims)
+                c.Next()
+        }</span>
+}<span class="cov8" title="1">
+</span>
+// AdminOnly is a Gin middleware that restricts a route to admin users only.
+// It must be placed after the Auth middleware, since it relies on the claims
+// that Auth stores in the context. Rejects non-ad<span class="cov8" title="1">min requests with 403.
+func AdminOnly() gin.HandlerFunc {
+        return func</span><span class="cov8" title="1">(c *gin.Context) {
+                claims := ExtractClaims(c)
+                </span>if claims == nil || claims.Role != models.RoleAdmin {
+        <span class="cov8" title="1">                c.AbortWithStatusJSON(http.StatusForbidden, gin.H{"error": "admin access required"})
+                        retur</span><span class="cov8" title="1">n
+                }
+                </span>c.Next()
+        <span class="cov8" title="1">}
+</span>}
+
+// ExtractClaims retrieves the JWT claims stored in the Gin context by the Auth middleware.
+// Returns nil if the claims are not present or have an unexpected type,
+// which handlers treat as "not authenticated".
+func ExtractClaims(c *gin.Context) *models.Claims {
+        val, exists := c.Get(ClaimsKey)
+        if !exists {
+                return nil
+        }
+        // Type-assert to *models.Claims — returns nil if the stored value has a different type.
+        claims, ok := val.(*models.Claims)
+        if !ok {
+                return nil
+        }
+        return claims
+}
+</pre>
+		
+		<pre class="file" id="file8" style="display: none">package repository
+
+import (
+        "database/sql"
+        "fmt"
+        "log"
+        "os"
+
+        _ "github.com/lib/pq"
+)
+
+// NewDB opens a PostgreSQL co<span class="cov8" title="1">nnection using credentials from environment variables
+// and verifies the connection with a ping. Falls back to sensible local defaults
+// if any variable is unset.
+func NewDB() (*sql.DB, error) {
+        // Read each connection parameter from the environment, using a local default if absent.
+        host := getEnv("DB_HOST", "localhost")
+        port := getEnv("DB_PORT", "5432")
+        user := getEnv("DB_USER", "postgres")
+        password := getEnv("DB_PASSWORD", "postgres")
+        dbname := getEnv("DB_NAME", "restaurant_db")
+
+        // Build the PostgreSQL connection string (DSN).
+        dsn := fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=disable",
+                host, port, user, password, dbname)
+
+</span>        // sql.Open only validates the arguments — it does not actually connect yet.
+        d</span>b, err := sql.Open("postgres", dsn)
+        if err != nil {
+                return nil, err
+        <span class="cov8" title="1">}
+</span>
+        /</span>/ Ping establishes a real connection and confirms the DB is reachable.
+        if err := db.Ping(); err != nil {
+                return nil, fmt.Errorf("cannot connect to DB: %w", err)
+        <span class="cov8" title="1">}
+
+        // Tune the connection pool: allow up to 25 open connections and keep 10 idle.
+        db.SetMaxOpenConns(25)
+        db.SetMaxIdleConns(10)
+
+</span>        log.Println("Database connected successfully")
+        return db, nil
+}
+
+// RunMigrations creates all required tables if they do not already exist.
+// It is safe to run on every startup — CREATE TABLE IF NOT EXISTS is idempotent.
+func RunMigrations(db *sql.DB) error {
+        queries := []string{
+                // Enable the uuid-ossp extension so uuid_generate_v4() is available for primary keys.
+                `CREATE EXTENSION IF NOT EXISTS "uuid-ossp";`,
+
+                // users — stores registered accounts. Email must be unique across the system.
+                `CREATE TABLE IF NOT EXISTS users (
+                        id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+                        name VARCHAR(255) NOT NULL,
+                        email VARCHAR(255) UNIQUE NOT NULL,
+                        password VARCHAR(255) NOT NULL,
+                        role VARCHAR(50) NOT NULL DEFAULT 'client',
+                        created_at TIMESTAMPTZ DEFAULT NOW(),
+                        updated_at TIMESTAMPTZ DEFAULT NOW()
+                );`,
+
+                // restaurants — each restaurant is owned by a user (admin_id).
+                // Deleting a user cascades and removes their restaurants.
+                `CREATE TABLE IF NOT EXISTS restaurants (
+                        id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+                        name VARCHAR(255) NOT NULL,
+                        address TEXT NOT NULL,
+                        phone VARCHAR(50) NOT NULL,
+                        description TEXT,
+                        admin_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+                        capacity INT NOT NULL DEFAULT 50,
+                        created_at TIMESTAMPTZ DEFAULT NOW(),
+                        updated_at TIMESTAMPTZ DEFAULT NOW()
+                );`,
+
+                // menus — each menu belongs to a restaurant.
+                // Deleting a restaurant cascades and removes its menus.
+                `CREATE TABLE IF NOT EXISTS menus (
+                        id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+                        restaurant_id UUID NOT NULL REFERENCES restaurants(id) ON DELETE CASCADE,
+                        name VARCHAR(255) NOT NULL,
+                        description TEXT,
+                        created_at TIMESTAMPTZ DEFAULT NOW(),
+                        updated_at TIMESTAMPTZ DEFAULT NOW()
+                );`,
+
+                // menu_items — individual dishes within a menu.
+                // Deleting a menu cascades and removes all its items.
+                `CREATE TABLE IF NOT EXISTS menu_items (
+                        id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+                        menu_id UUID NOT NULL REFERENCES menus(id) ON DELETE CASCADE,
+                        name VARCHAR(255) NOT NULL,
+                        description TEXT,
+                        price NUMERIC(10,2) NOT NULL,
+                        available BOOLEAN DEFAULT TRUE
+                );`,
+
+                // reservations — a table booking made by a user at a restaurant.
+                // Deleting the user or restaurant cascades and removes their reservations.
+                `CREATE TABLE IF NOT EXISTS reservations (
+                        id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+                        restaurant_id UUID NOT NULL REFERENCES restaurants(id) ON DELETE CASCADE,
+                        user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+                        date TIMESTAMPTZ NOT NULL,
+                        party_size INT NOT NULL,
+                        status VARCHAR(50) NOT NULL DEFAULT 'pending',
+                        notes TEXT,
+                        created_at TIMESTAMPTZ DEFAULT NOW()
+                );`,
+
+                // orders — a food order placed by a user at a restaurant.
+                // reservation_id is optional (NULL for standalone/takeaway orders).
+                // If the linked reservation is deleted, reservation_id is set to NULL (SET NULL).
+                `CREATE TABLE IF NOT EXISTS orders (
+                        id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+                        user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+                        restaurant_id UUID NOT NULL REFERENCES restaurants(id) ON DELETE CASCADE,
+                        reservation_id UUID REFERENCES reservations(id) ON DELETE SET NULL,
+                        total NUMERIC(10,2) NOT </span><span class="cov8" title="1">NULL DEFAULT 0,
+                        status VARCHAR(50) NOT NULL DEFAULT</span><span class="cov0" title="0"> 'pending',
+                        pickup BOOLEAN DEFAULT FALSE,
+                        </span>created_at TIMESTAMPTZ DEFAULT NOW()
+                );`,
+
+                // order_items — individual lines within an order.
+        <span class="cov8" title="1">        // Price is stored here as a snapshot so it is unaffected by future menu price changes.
+                `CREATE T</span>ABLE IF NOT EXISTS order_items (
+                        id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+                        order_id UUID NOT NULL REFERENCES orders(id) ON DELETE CASCADE,
+                        menu_item_id UUID NOT NULL REFERENCES menu_items(id) ON DELETE CASCADE,
+                        quantity INT NOT NULL,
+                        price NUMERIC(10,2) NOT NULL
+</span>                );`,
+        }</span>
+<span class="cov8" title="1">
+</span>        // Execute each statement in order. Stop and return the error if any statement fails.
+        for _, q := range queries {
+                if _, err := db.Exec(q); err != nil {
+                        return fmt.Errorf("migration error: %w", err)
+                }
+        }
+
+        log.Println("Migrations applied successfully")
+        return nil
+}
+
+// getEnv reads an environment variable by key and returns its value.
+// If the variable is not set or is empty, it returns the provided fallback value.
+func getEnv(key, fallback string) string {
+        if v := os.Getenv(key); v != "" {
+                return v
+        }
+        return fallback
+}
+</pre>
+		
+		<pre class="file" id="file9" style="display: none">package repository
+
+import (
+        "database/sql"
+        "errors"
+        "restaurant-api/internal/models"
+)
+
+// MenuRepository handles all database operations for menus and their items.
+type MenuRepository struct {
+        db *sql.DB
+}
+
+// NewMenuRepository creates a MenuRepository with the given database connection.
+f</span>unc NewMenuRepository(db *sql.DB) *MenuRepository {
+        return &amp;MenuRepository{db: db}
+}
+
+// Create inser</span><span class="cov0" title="0">ts a new menu and all its items in a single transaction.
+// Using a transaction ensures that if any item insertion fails, the whole
+//</span> operation is rolled back and no partial data is left in the database.
+f<span class="cov8" title="1">unc (r *MenuRepository) Create(menu *models.Menu) error {
+        tx, err := r.db.Begin()
+        if err != nil {
+                return err
+        }
+        // Rollback is a no-op if Commit has already been called successfully.
+        defer tx.Rollback()
+
+        // Insert the </span><span class="cov0" title="0">menu row and read back the generated ID and timestamps.
+        err = tx.QueryRow(
+                </span>`INSERT INTO menus (id, restaurant_id, name, description, created_at, updated_at)
+                VALUES (uuid_generate_v4(), $1, $2, $3, NOW(), NOW())
+        <span class="cov8" title="1">        RETURNING id, created_at,</span><span class="cov8" title="1"> updated_at`,
+                menu.RestaurantID, menu.Name, menu.Description,
+        ).Scan(&amp;menu.ID, &amp;menu.CreatedAt, &amp;menu.UpdatedAt)
+        if err != nil {
+                return err
+        }
+
+        // Insert each menu item, linking it to the newly created menu ID.
+        // We iterate b</span><span class="cov0" title="0">y index so we can write the generated ID back into the slice element.
+        for i := range menu.Items {
+                i</span>tem := &amp;menu.Items[i]
+                <span class="cov8" title="1">err = tx.QueryRow(
+</span>                        `INSERT INTO menu_items (id, menu_id, name, description, price, available)
+                        VALUES (uuid_generate_v4(), $1, $2, $3, $4, $5)
+        <span class="cov8" title="1">                RETURNING id`,
+</span>                        menu.ID, item.Name, item.Description, item.Price, item.Available,
+                ).Scan(&amp;item.ID)
+                if err != nil {
+                        return err
+                }
+                item.MenuID = menu.ID
+        }
+
+</span>        return tx.Commit()
+}</span>
+<span class="cov8" title="1">
+</span>// FindByID returns the menu with the given ID, including all its items.
+//</span> Returns (nil, nil) if no menu with that ID exists.
+func (r *MenuRepository) FindByID(id string) (*models.Menu, error) {
+        <span class="cov8" title="1">menu := &amp;models.Menu{}
+
+</span>        // Fetch the menu row first.
+        e</span>rr := r.db.QueryRow(
+        <span class="cov8" title="1">        `SELECT id, restaurant_id, name, description, created_at, updated_at FROM menus WHERE id = $1`, id,
+        ).Scan(&amp;menu.ID, &amp;menu.RestaurantID, &amp;menu.Name, &amp;menu.Description, &amp;menu.CreatedAt, &amp;menu.UpdatedAt)
+        if errors.Is(err</span><span class="cov8" title="1">, sql.ErrNoRows) {
+                return nil, nil // Menu not found — return nil without an error.
+        }
+</span>        if err != nil {
+                r</span>eturn nil, err
+        }<span class="cov8" title="1">
+</span>
+        // Fetch all items that belong to this menu.
+        <span class="cov8" title="1">rows, err := r.d</span>b.Query(`SELECT id, menu_id, name, description, price, available FROM menu_items WHERE menu_id = $1`, menu.ID)
+        if err != nil {
+                return nil, err
+        }
+        defer rows.Close()
+
+</span>        // Scan each item row and append it to the menu's Items slice.
+        f</span>or rows.Next() {
+        <span class="cov8" title="1">        var item models.MenuItem
+                if err := rows.Scan(&amp;item.ID, &amp;item.MenuID, &amp;item.Name, &amp;item.Description, &amp;item.Price, &amp;item.Available); err != nil {
+                        return nil, err
+                }
+                menu.Items = append(menu.Items, item)
+        }
+
+        return menu, nil
+}
+
+</span>// Update modifies the menu's name and description, and replaces its items if new ones are provided.
+//</span> COALESCE(NULLIF($1,''), name) means: keep the existing value if the request sends an empty string.
+/<span class="cov8" title="1">/ Item replace</span><span class="cov0" title="0">ment is done by deleting all existing items and re-inserting the new ones,
+// all within a single transaction to keep the data consistent.
+//</span> Returns (nil, nil) if no menu with that ID exists.
+func (r *MenuRepository) Update(id string, req *models.UpdateMenuRequest) (*models.Menu, error) {
+        <span class="cov8" title="1">tx, err := r.db.Begin(</span><span class="cov8" title="1">)
+        if err != nil {
+</span>                return nil, err
+        }</span>
+        /<span class="cov8" title="1">/ Rollback is a no-op if Commit ha</span><span class="cov8" title="1">s already been called successfully.
+        defer tx.Rollback()
+
+        menu := &amp;models.Menu{}
+
+        // Update the menu row. COALESCE(NULLIF(value,''), column) preserves the existing
+        // value when an empty string is sent, allowing partial updates.
+        err = tx.QueryRo</span><span class="cov0" title="0">w(
+                `UPDATE menus SET name = COALESCE(NULLIF($1,''), name), description = COALESCE(NULLIF($2,''), description),
+                up</span>dated_at = NOW() WHERE id = $3
+                R<span class="cov8" title="1">ETURNING id, restaurant_id, name, description, created_at, updated_at`,
+                req.Name, req.Description, id,
+        ).Scan(&amp;menu.ID, &amp;menu.RestaurantID, &amp;menu.Name, &amp;menu.Description, &amp;menu.CreatedAt, &amp;menu.UpdatedAt)
+        if errors.Is(err, sql.ErrNoRows) {
+                return nil, nil // Menu not found — return nil without an error.
+        }
+</span>        if err != nil {
+                return nil, err
+        }
+<span class="cov8" title="1">
+</span>        // Only replace items if the request includes a new item list.
+        if len(req.Items) &gt; 0 {
+                // Delete all existing items for this menu befo<span class="cov8" title="1">re inserting the new ones.
+                if _, err := tx.Exec(`DELETE FROM menu_items WHERE menu_id = $1`, id); err != nil {
+                        return nil, err
+        </span>        }
+                for _, itemReq := range req.Items {
+                        var item models.MenuItem
+                        err = tx.QueryRow(
+                                `INSERT INTO menu_items (id, menu_id, name, description, price, available)
+                                VALUES (uuid_generate_v4(), $1, $2, $3, $4, $5) RETURNING id`,
+                                id, itemReq.Name, itemReq.Description, itemReq.Price, itemReq.Available,
+                        ).Scan(&amp;item.ID)
+</span>                        if err != nil {
+                </span>                return nil, err
+        <span class="cov8" title="1">                }
+</span>                        // Populate the remaining fields so the returned menu is complete.
+                        item.MenuID = id
+                        item.Name = itemReq.Name
+                        item.Description = itemReq.Description
+                        item.Price = itemReq.Price
+                        item.Available = itemReq.Available
+                        menu.Items = append(menu.Items, item)
+                }
+        }
+
+        return menu, tx.Commit()
+}
+
+// Delete removes a menu by ID. Deleting the menu also removes its items
+// automatically via the ON DELETE CASCADE constraint defined in the schema.
+func (r *MenuRepository) Delete(id string) error {
+        _, err := r.db.Exec(`DELETE FROM menus WHERE id = $1`, id)
+        return err
+}
+
+// FindItemByID returns a single menu item by its ID.
+// Returns (nil, nil) if no item with that ID exists.
+func (r *MenuRepository) FindItemByID(id string) (*models.MenuItem, error) {
+        item := &amp;models.MenuItem{}
+        err := r.db.QueryRow(
+                `SELECT id, menu_id, name, description, price, available FROM menu_items WHERE id = $1`, id,
+        ).Scan(&amp;item.ID, &amp;item.MenuID, &amp;item.Name, &amp;item.Description, &amp;item.Price, &amp;item.Available)
+        if errors.Is(err, sql.ErrNoRows) {
+                return nil, nil // Item not found — return nil without an error.
+        }
+        return item, err
+}
+</pre>
+		
+		<pre class="file" id="file10" style="display: none">package repository
+
+import (
+        "database/sql"
+        "errors"
+        "restaurant-api/internal/models"
+)
+
+// ReservationRepository handles all database operations for reservations.
+type ReservationRepository struct {
+        db *sql.DB
+}
+
+// NewReservationRepository creates a ReservationRepository with the given database connection.
+f</span>unc NewReservationRepository(db *sql.DB) *ReservationRepository {
+        return &amp;ReservationRepository{db: db}
+}
+
+// Create inserts a new reservation and writes the generated ID and timestamp back into the struct.
+func (r *ReservationRepository) Create(res *models.Reservation) error {
+        query := `INSERT INTO reservations (id, restaurant_id, user_id, date, party_size, status, notes, created_at)
+                VALUES (uuid_generate_v4(), $1, $2, $3, $4, $5, $6, NOW())
+        </span>        RETURNING id, created_at`
+        return r.db.QueryRow(query, res.RestaurantID, res.UserID, res.Date, res.PartySize, res.Status, res.Notes).
+                Scan(&amp;res.ID, &amp;res.CreatedAt)
+}
+
+// FindByID returns the reservation with the given ID.
+// Returns (nil, nil) if no reservation with that ID exists.
+func (r *ReservationRepository) FindByID(id string) (*models.Reservation, error) {
+        res := &amp;models.Reservation{}
+</span>        err := r.db.QueryRow(
+                </span>`SELECT id, restaurant_id, user_id, date, party_size, status, notes, created_at
+        <span class="cov8" title="1">        FROM reservati</span>ons WHERE id = $1`, id,
+        ).Scan(&amp;res.ID, &amp;res.RestaurantID, &amp;res.UserID, &amp;res.Date, &amp;res.PartySize, &amp;res.Status, &amp;res.Notes, &amp;res.CreatedAt)
+        if errors.Is(err, sql.ErrNoRows) {
+                return nil, nil // Reservation not found — return ni<span class="cov8" title="1">l without an error.
+        }
+        return res, err
+}</span>
+
+// Cancel sets the status of a reservation to 'cancelled'.
+// It does not delete the row so the booking history is preserved.
+func (r *ReservationRepository) Cancel(id string) error {
+        _, err := r.db</span><span class="cov0" title="0">.Exec(`UPDATE reservations SET status = 'cancelled' WHERE id = $1`, id)
+        return err
+}</span>
+<span class="cov8" title="1">
+</span>// CheckAvailability returns how many seats are still available at the restaurant
+// after accounting for the requested party size.
+// A negative result means the party is larger than the restaurant's total capacity.
+// Note: this is a simple capacity check — it does not account for existing reservations.
+func (r *ReservationRepository) CheckAvailability(restaurantID string, partySize int) (int, error) {
+        var capacity int
+        err := r.db.QueryRow(`SELECT capacity FROM restaurants WHERE id = $1`, restaurantID).Scan(&amp;capacity)
+        if err != nil {
+                return 0, err
+        }
+        </span>// Subtract the requested party size from the total capacity.
+        // The handler rejects the booking if this value is negative.
+        return capacity - partySize, nil
+}
+
+</span>// OrderRepository handles all database operations for orders and their items.
+ty</span>pe OrderRepository struct {
+        <span class="cov8" title="1">db *sql.DB
+}
+
+// NewOrderRepository creates an OrderRepository with the given database connection.
+func NewOrderRepository(db *sql.DB) *OrderRepository {
+        return &amp;OrderRepository{db: db}
+}
+
+// Create inser</span><span class="cov0" title="0">ts a new order and all its items in a single transaction.
+// Using a transaction ensures that if any item insertion fails, the whole
+//</span> operation is rolled back and no partial order is left in the database.
+func (r *OrderRepository) Create(order *models.Order) error {
+        <span class="cov8" title="1">tx, err := r.db.Begin()
+</span>        if err != nil {
+                return err
+        }
+        // Rollback is a no-op if Commit has already been called successfully.
+        defer tx.Rollback()
+
+        // Insert the o</span><span class="cov0" title="0">rder row and read back the generated ID and timestamp.
+        err = tx.QueryRow(
+                `</span>INSERT INTO orders (id, user_id, restaurant_id, reservation_id, total, status, pickup, created_at)
+                <span class="cov8" title="1">VALUES (uuid_generate_v</span>4(), $1, $2, $3, $4, $5, $6, NOW())
+                RETURNING id, created_at`,
+                order.UserID, order.RestaurantID, order.ReservationID, order.Total, order.Status, order.Pickup,
+        <span class="cov8" title="1">).Scan(&amp;order.ID, </span>&amp;order.CreatedAt)
+        if err != nil {
+                return err
+        }
+
+        // Insert each order item, linking it to the newly created order ID.
+        // We iterate by index so we can write the generated ID back into the slice element.
+        for i := range order.Items {
+                item := &amp;order.Items[i]
+                err = tx.QueryRow(
+                        `INSERT INTO order_items (id, o</span><span class="cov8" title="1">rder_id, menu_item_id, quantity, price)
+                        VALUES (uuid_generate_v4(), $1, $2, $3, $4) RETURNING id`,
+                </span>        order.ID, item.MenuItemID, item.Quantity, item.Price,
+        <span class="cov8" title="1">        ).Scan(&amp;item.</span><span class="cov0" title="0">ID)
+                if err != nil {
+                </span>        return err
+                }
+        <span class="cov8" title="1">        item.OrderID = order.ID
+        }
+
+        return tx.Comm</span><span class="cov0" title="0">it()
+}
+
+</span>/<span class="cov8" title="1">/ FindByID returns the order with the given ID, including all its items.
+// Returns (nil, nil) if no order with that ID exists.
+func (r *OrderRep</span><span class="cov8" title="1">ository) FindByID(id string) (*models.Order, error) {
+        order := &amp;models.Order{}
+
+</span>        // Fetch the order row first.
+        er</span>r := r.db.QueryRow(
+                <span class="cov8" title="1">`SELECT id, user_id, restaurant_id, res</span>ervation_id, total, status, pickup, created_at
+                FROM orders WHERE id = $1`, id,
+        ).Scan(&amp;order.ID, &amp;order.UserID, &amp;order.RestaurantID, &amp;order.ReservationID,
+        <span class="cov8" title="1">        &amp;order.Total, &amp;o</span>rder.Status, &amp;order.Pickup, &amp;order.CreatedAt)
+        if errors.Is(err, sql.ErrNoRows) {
+                return nil, nil // Order not found — return nil without an error.
+        }
+        if err != nil {
+                return nil, err
+        }
+
+        // Fetch all items that belong to this order.
+        rows, err := r.db.Query(
+                `SELECT id, order_id, menu_item_id, quantity, price FROM order_items WHERE order_id = $1`, order.ID,
+        )
+        if err != nil {
+                return nil, err
+        }
+        defer rows.Close()
+
+        // Scan each item row and append it to the order's Items slice.
+        for rows.Next() {
+                var item models.OrderItem
+                if err := rows.Scan(&amp;item.ID, &amp;item.OrderID, &amp;item.MenuItemID, &amp;item.Quantity, &amp;item.Price); err != nil {
+                        return nil, err
+                }
+                order.Items = append(order.Items, item)
+        }
+
+        return order, nil
+}
+</pre>
+		
+		<pre class="file" id="file11" style="display: none">package repository
+
+import (
+        "database/sql"
+        "errors"
+        "restaurant-api/internal/models"
+)
+
+// RestaurantRepository handles all database operations for restaurants.
+type RestaurantRepository struct {
+        db *sql.DB
+}
+
+// NewRestaurantRepository creates a RestaurantRepository with the given database connection.
+f</span>unc NewRestaurantRepository(db *sql.DB) *RestaurantRepository {
+        return &amp;RestaurantRepository{db: db}
+}
+
+// Create inserts a new restaurant and writes the generated ID and timestamps back into the struct.
+func (r *RestaurantRepository) Create(rest *models.Restaurant) error {
+        query := `INSERT INTO restaurants (id, name, address, phone, description, admin_id, capacity, created_at, updated_at)
+                VALUES (uuid_generate_v4(), $1, $2, $3, $4, $5, $6, NOW(), NOW())
+        </span>        RETURNING id, created_at, updated_at`
+        return r.db.QueryRow(query, rest.Name, rest.Address, rest.Phone, rest.Description, rest.AdminID, rest.Capacity).
+                Scan(&amp;rest.ID, &amp;rest.CreatedAt, &amp;rest.UpdatedAt)
+}
+
+</span>// FindAll returns every restaurant in the database, ordered from newest to oldest.
+//</span> Returns nil (not an empty slice) if there are no restaurants — the handler converts
+/<span class="cov8" title="1">/ this to an empty slice before sending the response.
+func (r *RestaurantRepository) FindAll() ([]models.Restaurant, error) {
+        rows, err := r.db.Query(`SELECT id, name, address, phone, description, admin_id, capacity, created_at, updated_at FROM restaurants ORDER BY created_at DESC`)
+        if err != nil {</span><span class="cov8" title="1">
+                return nil, err
+        }
+        defer rows.Close()
+</span>
+        //</span> Scan each row into a Restaurant and collect the results.
+        v<span class="cov8" title="1">ar restaurants []models.Restaurant
+</span>        for rows.Next() {
+        <span class="cov8" title="1">        var rest models.Restau</span>rant
+                if err := rows.Scan(&amp;rest.ID, &amp;rest.Name, &amp;rest.Address, &amp;rest.Phone, &amp;rest.Description,
+                        &amp;rest.AdminID, &amp;rest.Capacity, &amp;rest.CreatedAt, &amp;rest.UpdatedAt); err != nil {
+                        return nil, err
+                }
+                restaurants = append(restaurants, rest)
+        }
+        return restaurants, nil
+}
+</span>
+//</span> FindByID returns the restaurant with the given ID.
+/<span class="cov8" title="1">/ Returns (nil, </span>nil) if no restaurant with that ID exists.
+func (r *RestaurantRepository) FindByID(id string) (*models.Restaurant, error) {
+        rest := &amp;models.Restaurant{}
+        err := r.db.QueryRow(`SELECT id, name, address, phone, description, admin_id, capacity, created_at, updated_at FROM restaurants WHERE id = $1`, id).
+                Scan(&amp;rest.ID, &amp;rest.Name, &amp;rest.Address, &amp;rest.Phone, &amp;rest.Description,
+                        &amp;rest.AdminID, &amp;rest.Capacity, &amp;rest.CreatedAt, &amp;rest.UpdatedAt)
+        if errors.Is(err, sql.ErrNoRows) {
+                return nil, nil // Restaurant not found — return nil without an error.
+        }
+        return rest, err
+}
+</pre>
+		
+		<pre class="file" id="file12" style="display: none">package repository
+
+import (
+        "database/sql"
+        "errors"
+        "restaurant-api/internal/models"
+)
+
+// UserRepository handles all database operations for user accounts.
+type UserRepository struct {
+        db *sql.DB
+}
+
+// NewUserRepository creates a UserRepository with the given database connection.
+f</span>unc NewUserRepository(db *sql.DB) *UserRepository {
+        return &amp;UserRepository{db: db}
+}
+
+// Create inserts a new user and writes the generated ID and timestamps back into the struct.
+// The password stored in user.Password must already be hashed before calling this method.
+func (r *UserRepository) Create(user *models.User) error {
+        query := `INSERT INTO users (id, name, email, password, role, created_at, updated_at)
+        </span>        VALUES (uuid_generate_v4(), $1, $2, $3, $4, NOW(), NOW())
+                RETURNING id, created_at, updated_at`
+        return r.db.QueryRow(query, user.Name, user.Email, user.Password, user.Role).
+                Scan(&amp;user.ID, &amp;user.CreatedAt, &amp;user.UpdatedAt)
+}
+
+// FindByEmail looks up a user by their email address.
+// Used during login to retrieve the account before verifying the password.
+// Returns (nil, nil) if no user with that email exists.
+func (r *UserRepository) FindByEmail(email string) (*models.User, error) {
+        user := &amp;models.User{}
+        query := `SELECT id, name, email, password, role, created_at, updated_at FROM users WHERE email = $1`
+        err := r.db.QueryRow(query, email).Scan(
+                &amp;user.ID, &amp;user.Name, &amp;user.Email, &amp;user.Password,
+                &amp;user.Role, &amp;user.CreatedAt, &amp;us</span><span class="cov8" title="1">er.UpdatedAt,
+        )
+        i</span>f errors.Is(err, sql.ErrNoRows) {
+                return nil, nil // User not found — return nil without an error.
+        <span class="cov8" title="1">}
+</span>        return user, err
+}
+
+// FindByID looks up a user by their unique ID.
+// Used by the /me endpoint to fetch the logged-in user's full profile.
+// Returns (nil, nil) if no user with that ID exists.
+func (r *UserRepository) FindByID(id string) (*models.User, error) {
+        user := &amp;models.User{}
+        query := `SELECT id, name, email, password, role, created_at, updated_at FROM users WHERE id = $1`
+        err := r.db.QueryRow(query, id).S</span><span class="cov8" title="1">can(
+                &amp;user.ID, &amp;user.Name, &amp;user.Email, &amp;user.Password,
+                </span>&amp;user.Role, &amp;user.CreatedAt, &amp;user.UpdatedAt,
+        <span class="cov8" title="1">)
+</span>        if errors.Is(err, sql.ErrNoRows) {
+                return nil, nil // User not found — return nil without an error.
+        }
+        return user, err
+}
+
+// Update modifies a user's name and/or email.
+// COALESCE(NULLIF($1,''), name) means: keep the existing value if an empty string is sent,
+// so callers can update just one field without affecting the other.
+// The password is intentionally excluded — password changes are not supported here.
+// Returns (nil, nil) if no user w</span><span class="cov8" title="1">ith that ID exists.
+func (r *UserRepository) Update(id string, req *models.UpdateUserRequest) (*models.User, error) {
+        q</span>uery := `UPDATE users SET name = COALESCE(NULLIF($1,''), name), email = COALESCE(NULLIF($2,''), email),
+        <span class="cov8" title="1">        updated_at = NO</span>W() WHERE id = $3
+                RETURNING id, name, email, role, created_at, updated_at`
+        user := &amp;models.User{}
+        err := r.db.QueryRow(query, req.Name, req.Email,<span class="cov8" title="1"> id).Scan(
+                &amp;user.ID, &amp;user.Name, &amp;user.Email, &amp;user.Role, &amp;user.CreatedAt, &amp;user.UpdatedAt,
+        )
+        </span>if errors.Is(err, sql.ErrNoRows) {
+                return nil, nil // User not found — return nil without an error.
+        }
+        return user, err
+}
+
+// Delete removes a user account by ID.
+// Deleting a user also cascades and removes their restaurants and reservations
+// via the ON DELETE CASCADE constraints defined in the schema.
+func (r *UserRepository) Delete(id string) error {
+        _, err := r.db.Exec(`DELETE FROM users WHERE id = $1`, id)
+        return err
+}
+</pre>
+		
+		<pre class="file" id="file13" style="display: none">package router
+
+import (
+        "github.com/gin-gonic/gin"
+
+        "restaurant-api/internal/auth"
+        "restaurant-api/internal/handlers"
+        "restaurant-api/internal/middleware"
+)
+
+// Setup creates the main API router and registers all routes.
+//
+// Every route in this router requires a valid JWT token in the
+// Authorization header — there are no public routes here.
+// Registration and login live in the separate auth service (cmd/auth).
+//
+// Routes marked with middleware.AdminOnly() can only be called by
+// users whose<span class="cov8" title="1"> JWT token contains role = "admin".
+func Setup(
+        userRepo handlers.UserRepository,
+        restaurantRepo handlers.RestaurantRepo</span><span class="cov8" title="1">sitory,
+        menuRepo handlers.MenuRepository,
+        r</span>eservationRepo handlers.ReservationRepository,
+        orderRepo handlers.OrderRepository,
+        <span class="cov8" title="1">jwtSvc *auth.JWTService,
+) *gin.Engine {
+        r := gin.Default()
+
+        // Public health check — no token required, used to verify the service is running.
+        r.GET("/health", func(c *gin.Context) {
+                c.JSON(200, gin.H{"service": "api", "status": "ok"})
+        })
+
+        // Create one handler per resource, injecting the repositories each one needs.
+        authHandler := handlers.NewAuthHandler(userRepo, jwtSvc)
+        userHandler := handlers.NewUserHandler(userRepo)
+        </span><span class="cov8" title="1">restaurantHandler := handlers.NewRestaurantHandler(restaurantRepo)
+        menuHandler := handlers.NewMenuHandler(menuRepo, restaurantRepo)
+        reservationHandler := handlers.NewReservationHandler(reservationRepo, restaurantRepo)
+        orderHandler := handlers.NewOrderHandler(orderRepo, menuRepo, restaurantRepo)
+
+        // All routes below this line require a valid JWT token.
+        // middleware.Auth(jwtSvc) reads the token from the Authorization header,
+        // validates it, and stores the user's claims in the request context.
+        // If the token is missing or invalid the request is rejected with 401.
+        protected := r.Group("/")
+        protected.Use(middleware.Auth(jwtSvc))
+        {
+                // User routes — any authenticated user can view or edit their own account.
+                protected.GET("/users/me", authHandler.Me)        // Get the profile of the logged-in user.
+                protected.PUT("/users/:id", userHandler.Update)   // Update a user account (own account or admin).
+                protected.DELETE("/users/:id", userHandler.Delete) // Delete a user account (own account or admin).
+
+                // Restaurant routes — listing is open to all authenticated users; creating requires admin.
+                </span>protected.GET("/restaurants", restaurantHandler.List)
+                protected.POST("/restaurants", middleware.AdminOnly(), restaurantHandler.Create) // Admin only.
+<span class="cov8" title="1">
+</span>                // Menu routes — reading is open to all authenticated users; write operations require admin.
+                protected.POST("/menus", middleware.AdminOnly(), menuHandler.Create)          // Admin only.
+                protected.GET("/menus/:id", menuHandler.Get)
+                protected.PUT("/menus/:id", middleware.AdminOnly(), menuHandler.Update)       // Admin only.
+                protected.DELETE("/menus/:id", middleware.AdminOnly(), menuHandler.Delete)    // Admin only.
+
+                // Reservation routes — any authenticated user can create or cancel their own reservation.
+                protected.POST("/reservations", reservationHandler.Create)
+                protected.DELETE("/reservations/:id", reservationHandler.Cancel)
+
+                // Order routes — any authenticated user can place or view their own orders.
+                protected.POST("/orders", orderHandler.Create)
+                protected.GET("/orders/:id", orderHandler.Get)
+        }
+
+        return r
+}
+</pre>
+		
+		</div>
+	</body>
+	<script>
+	(function() {
+		var files = document.getElementById('files');
+		var visible;
+		files.addEventListener('change', onChange, false);
+		function select(part) {
+			if (visible)
+				visible.style.display = 'none';
+			visible = document.getElementById(part);
+			if (!visible)
+				return;
+			files.value = part;
+			visible.style.display = 'block';
+			location.hash = part;
+		}
+		function onChange() {
+			select(files.value);
+			window.scrollTo(0, 0);
+		}
+		if (location.hash != "") {
+			select(location.hash.substr(1));
+		}
+		if (!visible) {
+			select("file0");
+		}
+	})();
+	</script>
+</html>

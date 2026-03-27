@@ -129,7 +129,7 @@ func RunMigrations(db *sql.DB) error {
 		`CREATE TABLE IF NOT EXISTS order_items (
 			id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
 			order_id UUID NOT NULL REFERENCES orders(id) ON DELETE CASCADE,
-			menu_item_id UUID NOT NULL REFERENCES menu_items(id),
+			menu_item_id UUID NOT NULL REFERENCES menu_items(id) ON DELETE CASCADE,
 			quantity INT NOT NULL,
 			price NUMERIC(10,2) NOT NULL
 		);`,
